@@ -48,12 +48,15 @@ get_client_partition_config(
 
 
 static bool
-mapToStorage(
+get_absolute_offset(
     const unsigned int cid,
     const size_t offset,
     const size_t size,
-    size_t* newOff)
+    size_t* abs_offset)
 {
+    // set default value
+    *abs_offset = 0;
+
     const struct ClientConfig* p = get_client_partition_config(cid);
     if (NULL == p)
     {
@@ -61,17 +64,17 @@ mapToStorage(
         return false;
     }
 
-    size_t const real_offet = p->offset + offset;
+    size_t const abs_start_offet = p->offset + offset;
     // check overflow
-    if (real_offet < p->offset)
+    if (abs_start_offet < p->offset)
     {
         Debug_LOG_ERROR("invalid offset %d", offset);
         return false;
     }
 
-    size_t const end = real_offet + size;
+    size_t const end = abs_start_offet + size;
     // check overflow
-    if (end < real_offet)
+    if (end < abs_start_offet)
     {
         Debug_LOG_ERROR("invalid size %d", size);
         return false;
@@ -83,7 +86,7 @@ mapToStorage(
         return false;
     }
 
-    *newOff = real_offet;
+    *abs_offset = abs_start_offet;
     return true;
 }
 
@@ -124,7 +127,7 @@ storageServer_rpc_write(
     seL4_Word cid = storageServer_rpc_get_sender_id();
 
     size_t off;
-    if (!mapToStorage(cid, offset, size, &off))
+    if (!get_absolute_offset(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
@@ -173,7 +176,8 @@ storageServer_rpc_read(
     seL4_Word cid = storageServer_rpc_get_sender_id();
 
     size_t off;
-    if (!mapToStorage(cid, offset, size, &off))
+
+    if (!get_absolute_offset(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
@@ -226,7 +230,7 @@ storageServer_rpc_erase(
 
     size_t off;
 
-    if (!mapToStorage(cid, offset, size, &off))
+    if (!get_absolute_offset(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
