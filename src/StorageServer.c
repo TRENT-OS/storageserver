@@ -287,21 +287,28 @@ post_init(
     }
 
     // Make sure we can fit all the clients with their sizes and offsets in
-    // this range; here we see how the individual offsets + sizes are simply
-    // added up ..
+    // this underlying storage.
     size_t range = 0;
     for (unsigned int i = 0; i < clients; i++)
     {
-        range += storageServer_config.clients[i].offset +
-                 storageServer_config.clients[i].size;
-    }
+        const struct ClientConfig* cli_part = &storageServer_config.clients[i];
 
-    if (range > sz)
-    {
-        Debug_LOG_ERROR(
-            "Client configuration (%zu bytes) exceeds underlying storage size (%zu bytes)",
-            range, sz);
-        return;
+        size_t part_end = cli_part->offset + cli_part->size;
+        if (part_end < cli_part->offset)
+        {
+            Debug_LOG_ERROR(
+                "client %i configuration invalid, offset=%zu, size=%zu",
+                i, cli_part->offset, cli_part->size);
+        }
+
+        if (cli_part->offset < range)
+        {
+            Debug_LOG_ERROR(
+                "client %i configuration invalid, offset %zu behind used space %zu",
+                i, range, cli_part->offset);
+        }
+
+        range = part_end;
     }
 
     init_ok = true;
