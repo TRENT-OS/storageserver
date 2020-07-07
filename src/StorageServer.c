@@ -29,12 +29,11 @@ static const size_t clients = sizeof(storageServer_config) /
 //------------------------------------------------------------------------------
 static bool
 mapToStorage(
+    const unsigned int cid,
     const size_t offset,
     const size_t size,
     size_t* newOff)
 {
-    seL4_Word cid = storageServer_rpc_get_sender_id();
-
     // Make we can map the badge id into the config struct
     Debug_ASSERT_PRINTFLN(cid > 0 && cid <= clients,
                           "Client ID (%i) exceeds excpedet range", cid);
@@ -59,9 +58,12 @@ storageServer_rpc_write(
     size_t  const size,
     size_t* const written)
 {
+    // get the calling client's ID
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+
     size_t off;
 
-    if (!mapToStorage(offset, size, &off))
+    if (!mapToStorage(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
@@ -87,10 +89,13 @@ storageServer_rpc_read(
     size_t  const size,
     size_t* const read)
 {
+    // get the calling client's ID
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+
     OS_Error_t err;
     size_t off;
 
-    if (!mapToStorage(offset, size, &off))
+    if (!mapToStorage(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
@@ -119,9 +124,12 @@ storageServer_rpc_erase(
     size_t  const size,
     size_t* const erased)
 {
+    // get the calling client's ID
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+
     size_t off;
 
-    if (!mapToStorage(offset, size, &off))
+    if (!mapToStorage(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
