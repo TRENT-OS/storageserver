@@ -30,7 +30,23 @@ bool init_ok = false;
 
 // Private Functions -----------------------------------------------------------
 
+
 //------------------------------------------------------------------------------
+static const struct ClientConfig*
+get_client_partition_config(
+    const unsigned int cid
+) {
+    if (cid > clients)
+    {
+        Debug_LOG_ERROR("client ID %u invalid", cid);
+        return NULL;
+    }
+
+    // map the badge id into the config struct
+    return &storageServer_config.clients[cid - 1];
+}
+
+
 static bool
 mapToStorage(
     const unsigned int cid,
@@ -38,16 +54,16 @@ mapToStorage(
     const size_t size,
     size_t* newOff)
 {
-    // Make we can map the badge id into the config struct
-    Debug_ASSERT_PRINTFLN(cid > 0 && cid <= clients,
-                          "Client ID (%i) exceeds excpedet range", cid);
+    const struct ClientConfig* p = get_client_partition_config(cid);
+    if (NULL == p)
+    {
+        Debug_LOG_ERROR("no configuration for client ID %u", cid);
+        return false;
+    }
 
-    size_t sz = storageServer_config.clients[cid - 1].size;
-    size_t off = storageServer_config.clients[cid - 1].offset;
-
-    size_t const real_offet = off + offset;
+    size_t const real_offet = p->offset + offset;
     // check overflow
-    if (real_offet < off)
+    if (real_offet < p->offset)
     {
         Debug_LOG_ERROR("invalid offset %d", offset);
         return false;
@@ -61,7 +77,7 @@ mapToStorage(
         return false;
     }
 
-    if (size > sz)
+    if (size > p->size)
     {
         Debug_LOG_ERROR("size %d exceeds partition size", size);
         return false;
@@ -235,7 +251,15 @@ storageServer_rpc_getSize(
 
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
-    *size = storageServer_config.clients[cid - 1].size;
+
+    const struct ClientConfig* p = get_client_partition_config(cid);
+    if (NULL == p)
+    {
+        Debug_LOG_ERROR("no configuration for client ID %u", cid);
+        return false;
+    }
+
+    *size = p->size;
 
     return OS_SUCCESS;
 }
