@@ -7,6 +7,7 @@
 
 #include "LibDebug/Debug.h"
 
+#include <stddef.h>
 #include <string.h>
 
 #include <camkes.h>
