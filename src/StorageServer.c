@@ -265,15 +265,21 @@ post_init(
     void)
 {
     OS_Error_t err;
-    size_t sz, range;
 
     // Make sure both dataports have the same size; this is for simplicity, we
     // we can deal with this later if it should be necessary..
-    Debug_ASSERT_PRINTFLN(OS_Dataport_getSize(inPort) ==
-                          OS_Dataport_getSize(outPort),
-                          "Dataports have different sizes");
+    size_t dp_in_size = OS_Dataport_getSize(inPort);
+    size_t dp_out_size = OS_Dataport_getSize(outPort);
+    if (dp_in_size != dp_out_size)
+    {
+        Debug_LOG_ERROR(
+            "Dataports in (%zu bytes) and out (%zu bytes) differ",
+            dp_in_size, dp_out_size);
+        return;
+    }
 
     // Check the amount of bytes we have available on the lower device
+    size_t sz = 0;
     if ((err = storage_rpc_getSize(&sz)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("storage_rpc_getSize() failed with %d", err);
@@ -283,16 +289,20 @@ post_init(
     // Make sure we can fit all the clients with their sizes and offsets in
     // this range; here we see how the individual offsets + sizes are simply
     // added up ..
-    range = 0;
+    size_t range = 0;
     for (unsigned int i = 0; i < clients; i++)
     {
         range += storageServer_config.clients[i].offset +
                  storageServer_config.clients[i].size;
     }
-    Debug_ASSERT_PRINTFLN(range <= sz,
-                          "Client configuration (%zu bytes) exceeds "
-                          "underlying storage size (%zu bytes)",
-                          range, sz);
+
+    if (range > sz)
+    {
+        Debug_LOG_ERROR(
+            "Client configuration (%zu bytes) exceeds underlying storage size (%zu bytes)",
+            range, sz);
+        return;
+    }
 
     init_ok = true;
 }
