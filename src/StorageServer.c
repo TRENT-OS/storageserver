@@ -314,12 +314,18 @@ post_init(
         return;
     }
 
+    Debug_LOG_INFO("storage medium size: %d bytes", sz);
+
     // Make sure we can fit all the clients with their sizes and offsets in
     // this underlying storage.
     size_t range = 0;
     for (unsigned int i = 0; i < clients; i++)
     {
         const struct ClientConfig* cli_part = &storageServer_config.clients[i];
+
+        Debug_LOG_INFO(
+                "client %i: offset=%zu, size=%zu",
+                i, cli_part->offset, cli_part->size);
 
         size_t part_end = cli_part->offset + cli_part->size;
         if (part_end < cli_part->offset)
