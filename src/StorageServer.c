@@ -25,6 +25,7 @@ static const size_t clients = sizeof(storageServer_config) /
 
 // Private Functions -----------------------------------------------------------
 
+//------------------------------------------------------------------------------
 static bool
 mapToStorage(
     const size_t offset,
@@ -47,6 +48,7 @@ mapToStorage(
 
 // Public Functions ------------------------------------------------------------
 
+//------------------------------------------------------------------------------
 OS_Error_t
 storageServer_rpc_write(
     size_t  const offset,
@@ -72,6 +74,8 @@ storageServer_rpc_write(
     return storage_rpc_write(off, size, written);
 }
 
+
+//------------------------------------------------------------------------------
 OS_Error_t
 storageServer_rpc_read(
     size_t  const offset,
@@ -101,6 +105,8 @@ storageServer_rpc_read(
     return err;
 }
 
+
+//------------------------------------------------------------------------------
 OS_Error_t
 storageServer_rpc_erase(
     size_t  const offset,
@@ -117,6 +123,8 @@ storageServer_rpc_erase(
     return storage_rpc_erase(off, size, erased);
 }
 
+
+//------------------------------------------------------------------------------
 OS_Error_t
 storageServer_rpc_getSize(
     size_t* const size)
@@ -127,6 +135,7 @@ storageServer_rpc_getSize(
     return OS_SUCCESS;
 }
 
+//------------------------------------------------------------------------------
 OS_Error_t
 storageServer_rpc_getState(
     uint32_t* flags)
@@ -134,6 +143,8 @@ storageServer_rpc_getState(
     return storage_rpc_getState(flags);
 }
 
+
+//------------------------------------------------------------------------------
 void
 post_init(
     void)
