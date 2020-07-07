@@ -266,6 +266,12 @@ post_init(
     OS_Error_t err;
     size_t i, sz, range;
 
+    // Make sure both dataports have the same size; this is for simplicity, we
+    // we can deal with this later if it should be necessary..
+    Debug_ASSERT_PRINTFLN(OS_Dataport_getSize(inPort) ==
+                          OS_Dataport_getSize(outPort),
+                          "Dataports have different sizes");
+
     // Check the amount of bytes we have available on the lower device
     if ((err = storage_rpc_getSize(&sz)) != OS_SUCCESS)
     {
@@ -286,12 +292,6 @@ post_init(
                           "Client configuration (%zu bytes) exceeds "
                           "underlying storage size (%zu bytes)",
                           range, sz);
-
-    // Make sure both dataports have the same size; this is for simplicity, we
-    // we can deal with this later if it should be necessary..
-    Debug_ASSERT_PRINTFLN(OS_Dataport_getSize(inPort) ==
-                          OS_Dataport_getSize(outPort),
-                          "Dataports have different sizes");
 
     init_ok = true;
 }
