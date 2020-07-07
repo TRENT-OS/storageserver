@@ -70,10 +70,8 @@ storageServer_rpc_write(
     {
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
-    else
-    {
-        memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(inPort), size);
-    }
+
+    memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(inPort), size);
 
     return storage_rpc_write(off, size, written);
 }
@@ -103,10 +101,8 @@ storageServer_rpc_read(
         {
             return OS_ERROR_BUFFER_TOO_SMALL;
         }
-        else
-        {
-            memcpy(OS_Dataport_getBuf(inPort), OS_Dataport_getBuf(outPort), *read);
-        }
+
+        memcpy(OS_Dataport_getBuf(inPort), OS_Dataport_getBuf(outPort), *read);
     }
 
     return err;
