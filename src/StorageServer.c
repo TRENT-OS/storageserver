@@ -8,6 +8,7 @@
 #include "LibDebug/Debug.h"
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -264,7 +265,7 @@ post_init(
     void)
 {
     OS_Error_t err;
-    size_t i, sz, range;
+    size_t sz, range;
 
     // Make sure both dataports have the same size; this is for simplicity, we
     // we can deal with this later if it should be necessary..
@@ -283,7 +284,7 @@ post_init(
     // this range; here we see how the individual offsets + sizes are simply
     // added up ..
     range = 0;
-    for (i = 0; i < clients; i++)
+    for (unsigned int i = 0; i < clients; i++)
     {
         range += storageServer_config.clients[i].offset +
                  storageServer_config.clients[i].size;
