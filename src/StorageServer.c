@@ -8,6 +8,7 @@
 #include "LibDebug/Debug.h"
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include <camkes.h>
@@ -23,6 +24,8 @@ static OS_Dataport_t inPort = OS_DATAPORT_ASSIGN(storageServer_dp);
 // Clients we have based on the amount of config data
 static const size_t clients = sizeof(storageServer_config) /
                               sizeof(struct ClientConfig);
+
+bool init_ok = false;
 
 // Private Functions -----------------------------------------------------------
 
@@ -79,6 +82,12 @@ storageServer_rpc_write(
     size_t  const size,
     size_t* const written)
 {
+    if (!init_ok)
+    {
+        Debug_LOG_ERROR("fail call since initialization failed");
+        return OS_ERROR_INVALID_STATE;
+    }
+
     if (size > OS_Dataport_getSize(inPort))
     {
         // the client did a bogus request, it knows the data port size and
@@ -121,6 +130,12 @@ storageServer_rpc_read(
 {
     // set default value
     *read = 0;
+
+    if (!init_ok)
+    {
+        Debug_LOG_ERROR("fail call since initialization failed");
+        return OS_ERROR_INVALID_STATE;
+    }
 
     if (size > OS_Dataport_getSize(inPort))
     {
@@ -183,6 +198,12 @@ storageServer_rpc_erase(
     size_t  const size,
     size_t* const erased)
 {
+    if (!init_ok)
+    {
+        Debug_LOG_ERROR("fail call since initialization failed");
+        return OS_ERROR_INVALID_STATE;
+    }
+
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
 
@@ -205,6 +226,12 @@ NONNULL_ALL
 storageServer_rpc_getSize(
     size_t* const size)
 {
+    if (!init_ok)
+    {
+        Debug_LOG_ERROR("fail call since initialization failed");
+        return OS_ERROR_INVALID_STATE;
+    }
+
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
     *size = storageServer_config.clients[cid - 1].size;
@@ -221,6 +248,12 @@ NONNULL_ALL
 storageServer_rpc_getState(
     uint32_t* flags)
 {
+    if (!init_ok)
+    {
+        Debug_LOG_ERROR("fail call since initialization failed");
+        return OS_ERROR_INVALID_STATE;
+    }
+
     return storage_rpc_getState(flags);
 }
 
@@ -259,4 +292,6 @@ post_init(
     Debug_ASSERT_PRINTFLN(OS_Dataport_getSize(inPort) ==
                           OS_Dataport_getSize(outPort),
                           "Dataports have different sizes");
+
+    init_ok = true;
 }
