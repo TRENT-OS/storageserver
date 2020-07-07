@@ -141,7 +141,7 @@ NONNULL_ALL
 storageServer_rpc_getSize(
     size_t* const size)
 {
-    int cid = storageServer_rpc_get_sender_id();
+    seL4_Word cid = storageServer_rpc_get_sender_id();
     *size = storageServer_config.clients[cid - 1].size;
 
     return OS_SUCCESS;
