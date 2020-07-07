@@ -79,19 +79,28 @@ storageServer_rpc_write(
     size_t  const size,
     size_t* const written)
 {
-    // get the calling client's ID
-    seL4_Word cid = storageServer_rpc_get_sender_id();
-
-    size_t off;
-
-    if (!mapToStorage(cid, offset, size, &off))
+    if (size > OS_Dataport_getSize(inPort))
     {
-        return OS_ERROR_INSUFFICIENT_SPACE;
+        // the client did a bogus request, it knows the data port size and
+        // never ask for more data
+        return OS_ERROR_INVALID_PARAMETER;
     }
 
     if (size > OS_Dataport_getSize(outPort))
     {
+        // our lower data port is not big enough for this request, but the
+        // client can know this. We could write the data in chunks here instead
+        // of failing the request
         return OS_ERROR_BUFFER_TOO_SMALL;
+    }
+
+    // get the calling client's ID
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+
+    size_t off;
+    if (!mapToStorage(cid, offset, size, &off))
+    {
+        return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
     memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(inPort), size);
@@ -110,12 +119,26 @@ storageServer_rpc_read(
     size_t  const size,
     size_t* const read)
 {
+    if (size > OS_Dataport_getSize(inPort))
+    {
+        // the client did a bogus request, it knows the data port size and
+        // never ask for more data
+        return OS_ERROR_INVALID_PARAMETER;
+    }
+
+    if (size > OS_Dataport_getSize(outPort))
+    {
+        // our lower data port is not big enough for this request, but the
+        // client can know this. We could read the data in chunks here instead
+        // of failing the request
+        return OS_ERROR_BUFFER_TOO_SMALL;
+    }
+
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
 
     OS_Error_t err;
     size_t off;
-
     if (!mapToStorage(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
@@ -123,11 +146,6 @@ storageServer_rpc_read(
 
     if ((err = storage_rpc_read(off, size, read)) == OS_SUCCESS)
     {
-        if (*read > OS_Dataport_getSize(inPort))
-        {
-            return OS_ERROR_BUFFER_TOO_SMALL;
-        }
-
         memcpy(OS_Dataport_getBuf(inPort), OS_Dataport_getBuf(outPort), *read);
     }
 
