@@ -1,0 +1,153 @@
+/*
+ *  Provisioned RamDisk CAmkES Component
+ *
+ *  Copyright (C) 2020, Hensoldt Cyber GmbH
+ *
+ *
+ *  to be used as:
+ *
+ *      #include "StorageServer/camkes/StorageServer.camkes"
+ *
+ *      DECLARE_COMPONENT_StorageServer(StorageServer)
+ *
+ */
+
+import <if_OS_Storage.camkes>;
+
+//------------------------------------------------------------------------------
+// Component
+
+struct ClientConfig {
+    int size;
+    int offset;
+}
+
+struct StorageConfig {
+    ClientConfig clients[];
+}
+
+#define DECLARE_COMPONENT_StorageServer(                            \
+    _name_)                                                         \
+                                                                    \
+    component _name_ {                                              \
+        uses        if_OS_Storage   storage_rpc;                       \
+        dataport    Buf             storage_dp;                        \
+        provides    if_OS_Storage   storageServer_rpc;              \
+        dataport    Buf             storageServer_dp;               \
+        attribute   StorageConfig   storageServer_config;           \
+    }
+
+
+//------------------------------------------------------------------------------
+// Instance Connection
+
+#define FE_0(WHAT, N,I)
+#define FE_1(WHAT, N,I,R,D)      WHAT(N,I,R,D,1)
+#define FE_2(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,2) FE_1(WHAT, N,I, __VA_ARGS__)
+#define FE_3(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,3) FE_2(WHAT, N,I, __VA_ARGS__)
+#define FE_4(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,4) FE_3(WHAT, N,I, __VA_ARGS__)
+#define FE_5(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,5) FE_4(WHAT, N,I, __VA_ARGS__)
+#define FE_6(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,6) FE_5(WHAT, N,I, __VA_ARGS__)
+#define FE_7(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,7) FE_6(WHAT, N,I, __VA_ARGS__)
+#define GET_MACRO(_0,_10,_11,_20,_21,_30,_31, \
+                     _40,_41,_50,_51,_60,_61,_70,_71,NAME,...) NAME
+#define FOR_EACH(action, _name_, _inst_, ...)   \
+  GET_MACRO(_0,__VA_ARGS__,                     \
+    FE_7,FE_7,FE_6,FE_6,FE_5,FE_5,FE_4,FE_4,    \
+    FE_3,FE_3,FE_2,FE_2,FE_1,FE_1)    \
+        (action,_name_,_inst_,__VA_ARGS__)
+
+// Set a single connection
+#define CONNECTION(                                         \
+    _name_,                                                 \
+    _inst_,                                                 \
+    _caller_rpc_,                                           \
+    _caller_dp_,                                            \
+    _num_)                                                  \
+                                                            \
+    connection  seL4RPCCall                                 \
+        _name_ ## _ ## _inst_ ## _rpc ## _num_ (            \
+            from    _caller_rpc_,                           \
+            to      _inst_.storageServer_rpc                \
+        );                                                  \
+    connection seL4SharedData                               \
+        _name_ ## _ ## _inst_ ## _dp ## _num_ (             \
+            from    _caller_dp_,                            \
+            to      _inst_.storageServer_dp                 \
+        );
+
+/*
+ * With the macro magic above we can use this macro with more than one
+ * client, i.e.,
+ *
+ *      DECLARE_AND_CONNECT_INSTANCE_StorageServer(
+ *          StorageServer, storageServer
+ *          ramDisk.storage_rpc, ramDisk.storage_port,
+ *          client0.storage_rpc, client0.storage_port,
+ *          client1.storage_rpc, client1.storage_port,
+ *          client2.storage_rpc, client2.storage_port)
+ *
+ * Here the RamDisk storage interface is multiplexed onto three clients,
+ * which all need their individual configuration..
+ */
+#define DECLARE_AND_CONNECT_INSTANCE_StorageServer(     \
+    _name_,                                             \
+    _inst_,                                             \
+    _storage_rpc_,                                      \
+    _storage_dp_,                                       \
+    ...)                                                \
+                                                        \
+    component   _name_  _inst_;                         \
+    connection  seL4RPCCall                             \
+        _name_ ## _ ## _inst_ ## _rpc   (               \
+            from    _inst_.storage_rpc,                 \
+            to      _storage_rpc_                       \
+        );                                              \
+    connection seL4SharedData                           \
+        _name_ ## _ ## _inst_ ## _dp (                  \
+            from    _inst_.storage_dp,                  \
+            to      _storage_dp_                        \
+        );                                              \
+    FOR_EACH(CONNECTION, _name_, _inst_, __VA_ARGS__)
+
+//------------------------------------------------------------------------------
+// Instance Configuration
+
+// We need to ignore a few arguments here, as we don't care about them but
+// like this we can still re-use the FE_xx macros
+#define CONFIGURATION(          \
+    _0,                         \
+    _1,                         \
+    _offset_,                   \
+    _size_,                     \
+    _2)                         \
+                                \
+    {                           \
+        "offset": _offset_,     \
+        "size":   _size_,       \
+    },
+
+/*
+ * For every client we have connected above, we need to configure a
+ * (offset, size) tuple, e.g.,
+ *
+ *      CONFIGURE_INSTANCE_StorageServer(
+ *          storageServer
+ *          0, 1024,        // start at offset 0, have 1024 bytes
+ *          0, 4096,        // start at offset 1024+0, have 4096 bytes
+ *          1024, 512       // start at offset 1024+4096+1024, have 512 bytes
+ *      )
+ *
+ * If multiple clients are given, their respective address ranges are
+ * mapped based on their sizes and offsets; if no offsets are given,
+ * the target address range is continous. There can NEVER be an overlap!
+ */
+#define CONFIGURE_INSTANCE_StorageServer(               \
+    _inst_,                                             \
+    ...)                                                \
+                                                        \
+    _inst_.storageServer_config = {                     \
+        "clients": [                                    \
+            FOR_EACH(CONFIGURATION, 0, 0, __VA_ARGS__)  \
+        ]                                               \
+    };
