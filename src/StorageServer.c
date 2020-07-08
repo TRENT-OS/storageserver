@@ -119,6 +119,9 @@ storageServer_rpc_read(
     size_t  const size,
     size_t* const read)
 {
+    // set default value
+    *read = 0;
+
     if (size > OS_Dataport_getSize(inPort))
     {
         // the client did a bogus request, it knows the data port size and
@@ -137,19 +140,36 @@ storageServer_rpc_read(
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
 
-    OS_Error_t err;
     size_t off;
     if (!mapToStorage(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
-    if ((err = storage_rpc_read(off, size, read)) == OS_SUCCESS)
+    size_t lower_read = 0;
+    OS_Error_t ret = storage_rpc_read(off, size, &lower_read);
+    if (OS_SUCCESS != ret)
     {
-        memcpy(OS_Dataport_getBuf(inPort), OS_Dataport_getBuf(outPort), *read);
+        Debug_LOG_ERROR(
+            "lower read failed, lower_read=%zu, ret=%d",
+            lower_read, ret);
+        // ToDo: handle the case where we lower storage driver returned an
+        //       error, but also set lower_read > 0. Should we copy the data?
+        return ret;
     }
 
-    return err;
+    // do a sanity check for lower_read < size, we can't really trust the lower
+    // layer and bogus data should not fool us
+    if (lower_read > size)
+    {
+        Debug_LOG_ERROR("invalid lower_read %zu", lower_read);
+        return OS_ERROR_INVALID_STATE;
+    }
+
+    memcpy(OS_Dataport_getBuf(inPort), OS_Dataport_getBuf(outPort), lower_read);
+
+    *read = lower_read;
+    return OS_SUCCESS;
 }
 
 
