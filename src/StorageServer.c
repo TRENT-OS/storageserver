@@ -41,9 +41,30 @@ mapToStorage(
     size_t sz = storageServer_config.clients[cid - 1].size;
     size_t off = storageServer_config.clients[cid - 1].offset;
 
-    *newOff = off + offset;
+    size_t const real_offet = off + offset;
+    // check overflow
+    if (real_offet < off)
+    {
+        Debug_LOG_ERROR("invalid offset %d", offset);
+        return false;
+    }
 
-    return (offset + size < sz);
+    size_t const end = real_offet + size;
+    // check overflow
+    if (end < real_offet)
+    {
+        Debug_LOG_ERROR("invalid size %d", size);
+        return false;
+    }
+
+    if (size > sz)
+    {
+        Debug_LOG_ERROR("size %d exceeds partition size", size);
+        return false;
+    }
+
+    *newOff = real_offet;
+    return true;
 }
 
 // Public Functions ------------------------------------------------------------
