@@ -132,6 +132,11 @@ storageServer_rpc_write(
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
+    Debug_LOG_INFO(
+        "write from client %u, offet=%zu (-> %zu), len %zu",
+        cid, offset, off, size);
+
+
     memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(inPort), size);
 
     return storage_rpc_write(off, size, written);
@@ -181,6 +186,10 @@ storageServer_rpc_read(
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
+
+    Debug_LOG_INFO(
+        "read from client %u, offet=%zu (-> %zu), len %zu",
+        cid, offset, off, size);
 
     size_t lower_read = 0;
     OS_Error_t ret = storage_rpc_read(off, size, &lower_read);
@@ -234,6 +243,10 @@ storageServer_rpc_erase(
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
+
+    Debug_LOG_INFO(
+        "erase from client %u, offet=%zu (-> %zu), len %zu",
+        cid, offset, off, size);
 
     return storage_rpc_erase(off, size, erased);
 }
