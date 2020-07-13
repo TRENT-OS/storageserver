@@ -132,7 +132,7 @@ storageServer_rpc_write(
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
-    Debug_LOG_INFO(
+    Debug_LOG_DEBUG(
         "write from client %u, offet=%zu (-> %zu), len %zu",
         cid, offset, off, size);
 
@@ -187,7 +187,7 @@ storageServer_rpc_read(
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
-    Debug_LOG_INFO(
+    Debug_LOG_DEBUG(
         "read from client %u, offet=%zu (-> %zu), len %zu",
         cid, offset, off, size);
 
@@ -244,7 +244,7 @@ storageServer_rpc_erase(
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
-    Debug_LOG_INFO(
+    Debug_LOG_DEBUG(
         "erase from client %u, offet=%zu (-> %zu), len %zu",
         cid, offset, off, size);
 
