@@ -30,8 +30,8 @@ struct StorageConfig {
     _name_)                                                         \
                                                                     \
     component _name_ {                                              \
-        uses        if_OS_Storage   storage_rpc;                       \
-        dataport    Buf             storage_dp;                        \
+        uses        if_OS_Storage   storage_rpc;                    \
+        dataport    Buf             storage_dp;                     \
         provides    if_OS_Storage   storageServer_rpc;              \
         dataport    Buf             storageServer_dp;               \
         attribute   StorageConfig   storageServer_config;           \
