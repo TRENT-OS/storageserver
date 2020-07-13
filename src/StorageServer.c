@@ -24,7 +24,7 @@ static OS_Dataport_t inPort = OS_DATAPORT_ASSIGN(storageServer_dp);
 
 // Clients we have based on the amount of config data
 static const size_t clients = sizeof(storageServer_config) /
-                              sizeof(struct ClientConfig);
+                              sizeof(struct StorageServer_ClientConfig);
 
 bool init_ok = false;
 
@@ -32,7 +32,7 @@ bool init_ok = false;
 
 
 //------------------------------------------------------------------------------
-static const struct ClientConfig*
+static const struct StorageServer_ClientConfig*
 get_client_partition_config(
     const unsigned int cid
 ) {
@@ -57,7 +57,7 @@ get_absolute_offset(
     // set default value
     *abs_offset = 0;
 
-    const struct ClientConfig* p = get_client_partition_config(cid);
+    const struct StorageServer_ClientConfig* p = get_client_partition_config(cid);
     if (NULL == p)
     {
         Debug_LOG_ERROR("no configuration for client ID %u", cid);
@@ -269,7 +269,7 @@ storageServer_rpc_getSize(
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
 
-    const struct ClientConfig* p = get_client_partition_config(cid);
+    const struct StorageServer_ClientConfig* p = get_client_partition_config(cid);
     if (NULL == p)
     {
         Debug_LOG_ERROR("no configuration for client ID %u", cid);
@@ -334,7 +334,7 @@ post_init(
     size_t range = 0;
     for (unsigned int i = 0; i < clients; i++)
     {
-        const struct ClientConfig* cli_part = &storageServer_config.clients[i];
+        const struct StorageServer_ClientConfig* cli_part = &storageServer_config.clients[i];
 
         Debug_LOG_INFO(
                 "client %i: offset=%zu, size=%zu",

@@ -17,24 +17,24 @@ import <if_OS_Storage.camkes>;
 //------------------------------------------------------------------------------
 // Component
 
-struct ClientConfig {
+struct StorageServer_ClientConfig {
     int size;
     int offset;
 }
 
-struct StorageConfig {
-    ClientConfig clients[];
+struct StorageServer_Config {
+    StorageServer_ClientConfig clients[];
 }
 
 #define DECLARE_COMPONENT_StorageServer(                            \
     _name_)                                                         \
                                                                     \
     component _name_ {                                              \
-        uses        if_OS_Storage   storage_rpc;                    \
-        dataport    Buf             storage_dp;                     \
-        provides    if_OS_Storage   storageServer_rpc;              \
-        dataport    Buf             storageServer_dp;               \
-        attribute   StorageConfig   storageServer_config;           \
+        uses        if_OS_Storage           storage_rpc;            \
+        dataport    Buf                     storage_dp;             \
+        provides    if_OS_Storage           storageServer_rpc;      \
+        dataport    Buf                     storageServer_dp;       \
+        attribute   StorageServer_Config    storageServer_config;   \
     }
 
 
