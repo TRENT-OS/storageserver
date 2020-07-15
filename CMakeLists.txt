@@ -12,8 +12,11 @@ cmake_minimum_required(VERSION 3.7.2)
 # create a global variable here and then use this in the macro below. Note that
 # we do this, so we don't require anybody else to provide any helper variables,
 # this CMake file becomes fully self-contained and is "copy&paste safe".
-set(STORAGESERVER_DIR ${CMAKE_CURRENT_LIST_DIR})
-
+set(
+    STORAGESERVER_DIR
+    "${CMAKE_CURRENT_LIST_DIR}"
+    CACHE INTERNAL ""
+)
 
 #-------------------------------------------------------------------------------
 #
@@ -24,7 +27,7 @@ macro(DeclareCAmkESComponent_StorageServer name)
     DeclareCAmkESComponent(
         ${name}
         SOURCES
-            "${STORAGESERVER_DIR}/src/StorageServer.c"
+            ${STORAGESERVER_DIR}/src/StorageServer.c
         C_FLAGS
             -Wall
             -Werror
@@ -34,4 +37,3 @@ macro(DeclareCAmkESComponent_StorageServer name)
     )
 
 endmacro()
-
