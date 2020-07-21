@@ -158,3 +158,9 @@ struct StorageServer_Config {
             StorageServer_FOR_EACH(StorageServer_CONFIGURATION, 0, 0, __VA_ARGS__)  \
         ]                                                                           \
     };
+
+//------------------------------------------------------------------------------
+// Assignments for instance
+
+#define ASSIGN_CLIENT_BADGE_StorageServer(_client_, _storage_rpc_, _val_) \
+    _client_._storage_rpc_ ## _attributes = _val_;
