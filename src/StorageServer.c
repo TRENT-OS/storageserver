@@ -338,7 +338,7 @@ post_init(
 
         Debug_LOG_INFO(
                 "client %i: offset=%zu, size=%zu",
-                i, cli_part->offset, cli_part->size);
+                i + 1, cli_part->offset, cli_part->size);
 
         size_t part_end = cli_part->offset + cli_part->size;
         if (part_end < cli_part->offset)
