@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <camkes.h>
 
@@ -79,9 +80,9 @@ get_client_partition_config(
 static bool
 get_absolute_offset(
     const unsigned int cid,
-    const size_t offset,
+    const off_t offset,
     const size_t size,
-    size_t* abs_offset)
+    off_t* abs_offset)
 {
     // set default value
     *abs_offset = 0;
@@ -93,15 +94,15 @@ get_absolute_offset(
         return false;
     }
 
-    size_t const abs_start_offet = p->offset + offset;
+    off_t const abs_start_offet = p->offset + offset;
     // check overflow
     if (abs_start_offet < p->offset)
     {
-        Debug_LOG_ERROR("invalid offset %d", offset);
+        Debug_LOG_ERROR("invalid offset %" PRIiMAX, offset);
         return false;
     }
 
-    size_t const end = abs_start_offet + size;
+    off_t const end = abs_start_offet + size;
     // check overflow
     if (end < abs_start_offet)
     {
@@ -127,7 +128,7 @@ get_absolute_offset(
 OS_Error_t
 NONNULL_ALL
 storageServer_rpc_write(
-    size_t  const offset,
+    off_t   const offset,
     size_t  const size,
     size_t* const written)
 {
@@ -156,16 +157,19 @@ storageServer_rpc_write(
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
-    size_t off;
+    off_t off;
     if (!get_absolute_offset(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
     Debug_LOG_DEBUG(
-        "write from client %u, offet=%zu (-> %zu), len %zu",
-        cid, offset, off, size);
-
+        "write from client %u, offet=%" PRIiMAX " (-> %" PRIiMAX " ), "
+        "len %zu",
+        cid,
+        offset,
+        off,
+        size);
 
     memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(*inPort), size);
 
@@ -179,7 +183,7 @@ storageServer_rpc_write(
 OS_Error_t
 NONNULL_ALL
 storageServer_rpc_read(
-    size_t  const offset,
+    off_t   const offset,
     size_t  const size,
     size_t* const read)
 {
@@ -211,15 +215,18 @@ storageServer_rpc_read(
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
-    size_t off;
+    off_t off;
     if (!get_absolute_offset(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
     }
 
     Debug_LOG_DEBUG(
-        "read from client %u, offet=%zu (-> %zu), len %zu",
-        cid, offset, off, size);
+        "read from client %u, offet=%" PRIiMAX " (-> %" PRIiMAX "), len %zu",
+        cid,
+        offset,
+        off,
+        size);
 
     size_t lower_read = 0;
     OS_Error_t ret = storage_rpc_read(off, size, &lower_read);
@@ -254,9 +261,9 @@ storageServer_rpc_read(
 OS_Error_t
 NONNULL_ALL
 storageServer_rpc_erase(
-    size_t  const offset,
-    size_t  const size,
-    size_t* const erased)
+    off_t  const offset,
+    off_t  const size,
+    off_t* const erased)
 {
     if (!init_ok)
     {
@@ -267,7 +274,7 @@ storageServer_rpc_erase(
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
 
-    size_t off;
+    off_t off;
 
     if (!get_absolute_offset(cid, offset, size, &off))
     {
@@ -275,8 +282,12 @@ storageServer_rpc_erase(
     }
 
     Debug_LOG_DEBUG(
-        "erase from client %u, offet=%zu (-> %zu), len %zu",
-        cid, offset, off, size);
+        "erase from client %u, offet=%" PRIiMAX " (-> %" PRIiMAX
+        "), len %" PRIiMAX,
+        cid,
+        offset,
+        off,
+        size);
 
     return storage_rpc_erase(off, size, erased);
 }
@@ -288,7 +299,7 @@ storageServer_rpc_erase(
 OS_Error_t
 NONNULL_ALL
 storageServer_rpc_getSize(
-    size_t* const size)
+    off_t* const size)
 {
     if (!init_ok)
     {
@@ -369,18 +380,18 @@ post_init(
     }
 
     // Check the amount of bytes we have available on the lower device
-    size_t sz = 0;
+    off_t sz = 0;
     if ((err = storage_rpc_getSize(&sz)) != OS_SUCCESS)
     {
         Debug_LOG_ERROR("storage_rpc_getSize() failed with %d", err);
         return;
     }
 
-    Debug_LOG_INFO("storage medium size: %d bytes", sz);
+    Debug_LOG_INFO("storage medium size: %" PRIiMAX " bytes", sz);
 
     // Make sure we can fit all the clients with their sizes and offsets in
     // this underlying storage.
-    size_t range = 0;
+    off_t range = 0;
     for (unsigned int i = 0; i < clients; i++)
     {
         const struct StorageServer_ClientConfig* cli_part =
@@ -390,19 +401,24 @@ post_init(
             "client %i: offset=%zu, size=%zu",
             i + 1, cli_part->offset, cli_part->size);
 
-        size_t part_end = cli_part->offset + cli_part->size;
+        off_t part_end = cli_part->offset + cli_part->size;
         if (part_end < cli_part->offset)
         {
             Debug_LOG_ERROR(
-                "client %i configuration invalid, offset=%zu, size=%zu",
-                i, cli_part->offset, cli_part->size);
+                "client %i configuration invalid, offset=%d, size=%d",
+                i,
+                cli_part->offset,
+                cli_part->size);
         }
 
         if (cli_part->offset < range)
         {
             Debug_LOG_ERROR(
-                "client %i configuration invalid, offset %zu behind used space %zu",
-                i, range, cli_part->offset);
+                "client %i configuration invalid, offset %" PRIiMAX
+                " behind used space %d",
+                i,
+                range,
+                cli_part->offset);
         }
 
         range = part_end;
