@@ -120,6 +120,28 @@ get_absolute_offset(
     return true;
 }
 
+// All arguments are of type `off_t` on purpose so that the arbitrary large
+// storage can be verified.
+static
+bool
+isValidStorageArea(
+    off_t const offset,
+    off_t const size,
+    off_t const storageSize)
+{
+    // Casting to the biggest possible integer for overflow detection purposes.
+    uintmax_t const end = (uintmax_t)offset + (uintmax_t)size;
+
+    // Checking integer overflow first. The end index is not part of the area,
+    // but we allow offset = end with size = 0 here.
+    //
+    // We also do not accept negative offset and sizes (off_t is signed).
+    return ((offset >= 0)
+            && (size >= 0)
+            && (end >= offset)
+            && (end <= storageSize));
+}
+
 // Public Functions ------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -155,6 +177,21 @@ storageServer_rpc_write(
         // client can know this. We could write the data in chunks here instead
         // of failing the request
         return OS_ERROR_BUFFER_TOO_SMALL;
+    }
+
+    if(!isValidStorageArea(
+            offset,
+            size,
+            get_client_partition_config(cid)->size))
+    {
+        Debug_LOG_ERROR(
+            "Offset out of bounds for this client. "
+            "offset = %" PRIiMAX ", size = %zu, partitionSize = %i",
+            offset,
+            size,
+            get_client_partition_config(cid)->size);
+
+        return OS_ERROR_OUT_OF_BOUNDS;
     }
 
     off_t off;
@@ -215,6 +252,20 @@ storageServer_rpc_read(
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
+    if(!isValidStorageArea(
+            offset,
+            size,
+            get_client_partition_config(cid)->size))
+    {
+        Debug_LOG_ERROR(
+            "Offset out of bounds for this client. "
+            "offset = %" PRIiMAX ", size = %zu, partitionSize = %i",
+            offset,
+            size,
+            get_client_partition_config(cid)->size);
+
+        return OS_ERROR_OUT_OF_BOUNDS;
+    }
     off_t off;
     if (!get_absolute_offset(cid, offset, size, &off))
     {
@@ -273,6 +324,21 @@ storageServer_rpc_erase(
 
     // get the calling client's ID
     seL4_Word cid = storageServer_rpc_get_sender_id();
+
+    if(!isValidStorageArea(
+            offset,
+            size,
+            get_client_partition_config(cid)->size))
+    {
+        Debug_LOG_ERROR(
+            "Offset out of bounds for this client. "
+            "offset = %" PRIiMAX ", size = %" PRIiMAX ", partitionSize = %i",
+            offset,
+            size,
+            get_client_partition_config(cid)->size);
+
+        return OS_ERROR_OUT_OF_BOUNDS;
+    }
 
     off_t off;
 
