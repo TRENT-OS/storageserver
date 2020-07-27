@@ -30,10 +30,17 @@ struct StorageServer_Config {
     _name_)                                                         \
                                                                     \
     component _name_ {                                              \
-        uses        if_OS_Storage           storage_rpc;            \
-        dataport    Buf                     storage_dp;             \
-        provides    if_OS_Storage           storageServer_rpc;      \
-        dataport    Buf                     storageServer_dp;       \
+        uses                if_OS_Storage     storage_rpc;          \
+        dataport            Buf               storage_dp;           \
+        provides            if_OS_Storage     storageServer_rpc;    \
+        maybe dataport      Buf               storageServer1_dp;    \
+        maybe dataport      Buf               storageServer2_dp;    \
+        maybe dataport      Buf               storageServer3_dp;    \
+        maybe dataport      Buf               storageServer4_dp;    \
+        maybe dataport      Buf               storageServer5_dp;    \
+        maybe dataport      Buf               storageServer6_dp;    \
+        maybe dataport      Buf               storageServer7_dp;    \
+        maybe dataport      Buf               storageServer8_dp;    \
         attribute   StorageServer_Config    storageServer_config;   \
     }
 
@@ -84,7 +91,7 @@ struct StorageServer_Config {
     connection seL4SharedData                               \
         _name_ ## _ ## _inst_ ## _dp ## _num_ (             \
             from    _caller_dp_,                            \
-            to      _inst_.storageServer_dp                 \
+            to      _inst_.storageServer ## _num_ ## _dp    \
         );
 
 /*

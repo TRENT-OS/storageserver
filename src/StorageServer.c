@@ -17,10 +17,25 @@
 // Not generated yet by camkes
 seL4_Word storageServer_rpc_get_sender_id(void);
 
+// Currently we support up to this amount of clients; in principle this can be
+// increased arbitrarily, but it has to go along with the same amount of data
+// ports and also the macros for instantiating the server need to be adjusted.
+#define STORAGESERVER_MAX_CLIENTS 8
+
 // Our dataports for reading from the top and writing down to the actual
-// storage layer
+// storage layer; please note that each client has its own dataport
 static OS_Dataport_t outPort = OS_DATAPORT_ASSIGN(storage_dp);
-static OS_Dataport_t inPort = OS_DATAPORT_ASSIGN(storageServer_dp);
+static OS_Dataport_t inPorts[STORAGESERVER_MAX_CLIENTS] =
+{
+    OS_DATAPORT_ASSIGN(storageServer1_dp),
+    OS_DATAPORT_ASSIGN(storageServer2_dp),
+    OS_DATAPORT_ASSIGN(storageServer3_dp),
+    OS_DATAPORT_ASSIGN(storageServer4_dp),
+    OS_DATAPORT_ASSIGN(storageServer5_dp),
+    OS_DATAPORT_ASSIGN(storageServer6_dp),
+    OS_DATAPORT_ASSIGN(storageServer7_dp),
+    OS_DATAPORT_ASSIGN(storageServer8_dp),
+};
 
 // Clients we have based on the amount of config data
 static const size_t clients = sizeof(storageServer_config) /
@@ -29,13 +44,27 @@ static const size_t clients = sizeof(storageServer_config) /
 bool init_ok = false;
 
 // Private Functions -----------------------------------------------------------
+static OS_Dataport_t*
+get_client_port(
+    const unsigned int cid)
+{
+    if (cid > clients)
+    {
+        Debug_LOG_ERROR("client ID %u invalid", cid);
+        return NULL;
+    }
 
+    // Due to the way the macros work, the first client in the connection macro
+    // (CONNECT_INSTANCE_StorageServer) always has the highest ID; so we need
+    // to invert the mapping here
+    return &inPorts[clients - cid];
+}
 
 //------------------------------------------------------------------------------
 static const struct StorageServer_ClientConfig*
 get_client_partition_config(
-    const unsigned int cid
-) {
+    const unsigned int cid)
+{
     if (cid > clients)
     {
         Debug_LOG_ERROR("client ID %u invalid", cid);
@@ -46,7 +75,7 @@ get_client_partition_config(
     return &storageServer_config.clients[cid - 1];
 }
 
-
+//------------------------------------------------------------------------------
 static bool
 get_absolute_offset(
     const unsigned int cid,
@@ -102,13 +131,17 @@ storageServer_rpc_write(
     size_t  const size,
     size_t* const written)
 {
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+    OS_Dataport_t* inPort;
+
     if (!init_ok)
     {
         Debug_LOG_ERROR("fail call since initialization failed");
         return OS_ERROR_INVALID_STATE;
     }
 
-    if (size > OS_Dataport_getSize(inPort))
+    inPort = get_client_port(cid);
+    if (NULL == inPort || size > OS_Dataport_getSize(*inPort))
     {
         // the client did a bogus request, it knows the data port size and
         // never ask for more data
@@ -123,9 +156,6 @@ storageServer_rpc_write(
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
-    // get the calling client's ID
-    seL4_Word cid = storageServer_rpc_get_sender_id();
-
     size_t off;
     if (!get_absolute_offset(cid, offset, size, &off))
     {
@@ -137,7 +167,7 @@ storageServer_rpc_write(
         cid, offset, off, size);
 
 
-    memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(inPort), size);
+    memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(*inPort), size);
 
     return storage_rpc_write(off, size, written);
 }
@@ -153,6 +183,9 @@ storageServer_rpc_read(
     size_t  const size,
     size_t* const read)
 {
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+    OS_Dataport_t* inPort;
+
     // set default value
     *read = 0;
 
@@ -162,7 +195,8 @@ storageServer_rpc_read(
         return OS_ERROR_INVALID_STATE;
     }
 
-    if (size > OS_Dataport_getSize(inPort))
+    inPort = get_client_port(cid);
+    if (NULL == inPort || size > OS_Dataport_getSize(*inPort))
     {
         // the client did a bogus request, it knows the data port size and
         // never ask for more data
@@ -177,11 +211,7 @@ storageServer_rpc_read(
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
-    // get the calling client's ID
-    seL4_Word cid = storageServer_rpc_get_sender_id();
-
     size_t off;
-
     if (!get_absolute_offset(cid, offset, size, &off))
     {
         return OS_ERROR_INSUFFICIENT_SPACE;
@@ -211,7 +241,7 @@ storageServer_rpc_read(
         return OS_ERROR_INVALID_STATE;
     }
 
-    memcpy(OS_Dataport_getBuf(inPort), OS_Dataport_getBuf(outPort), lower_read);
+    memcpy(OS_Dataport_getBuf(*inPort), OS_Dataport_getBuf(outPort), lower_read);
 
     *read = lower_read;
     return OS_SUCCESS;
@@ -306,17 +336,36 @@ post_init(
     void)
 {
     OS_Error_t err;
+    size_t dp_in_size, dp_out_size = OS_Dataport_getSize(outPort);
+    uint8_t i;
+
+    // Check we don't have too many clients
+    if (clients > STORAGESERVER_MAX_CLIENTS)
+    {
+        Debug_LOG_ERROR(
+            "Config contains too many clients (%i), currently we support "
+            "only %i clients", clients, STORAGESERVER_MAX_CLIENTS);
+        return;
+    }
 
     // Make sure both dataports have the same size; this is for simplicity, we
     // we can deal with this later if it should be necessary..
-    size_t dp_in_size = OS_Dataport_getSize(inPort);
-    size_t dp_out_size = OS_Dataport_getSize(outPort);
-    if (dp_in_size != dp_out_size)
+    for (i = 0; i < clients; i++)
     {
-        Debug_LOG_ERROR(
-            "Dataports in (%zu bytes) and out (%zu bytes) differ",
-            dp_in_size, dp_out_size);
-        return;
+        if (OS_Dataport_isUnset(inPorts[clients - i - 1]))
+        {
+            Debug_LOG_ERROR("Dataport %i is unset, it should be connected "
+                            "to the respective client", i);
+            return;
+        }
+        dp_in_size = OS_Dataport_getSize(inPorts[clients - i - 1]);
+        if (dp_in_size != dp_out_size)
+        {
+            Debug_LOG_ERROR(
+                "Dataports in (client %i, %zu bytes) and out (%zu bytes) differ",
+                i, dp_in_size, dp_out_size);
+            return;
+        }
     }
 
     // Check the amount of bytes we have available on the lower device
@@ -334,11 +383,12 @@ post_init(
     size_t range = 0;
     for (unsigned int i = 0; i < clients; i++)
     {
-        const struct StorageServer_ClientConfig* cli_part = &storageServer_config.clients[i];
+        const struct StorageServer_ClientConfig* cli_part =
+                &storageServer_config.clients[i];
 
         Debug_LOG_INFO(
-                "client %i: offset=%zu, size=%zu",
-                i + 1, cli_part->offset, cli_part->size);
+            "client %i: offset=%zu, size=%zu",
+            i + 1, cli_part->offset, cli_part->size);
 
         size_t part_end = cli_part->offset + cli_part->size;
         if (part_end < cli_part->offset)
