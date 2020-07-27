@@ -55,13 +55,17 @@ struct StorageServer_Config {
     StorageServer_FE_5(WHAT, N,I, __VA_ARGS__)
 #define StorageServer_FE_7(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,7) \
     StorageServer_FE_6(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_GET_MACRO(_0,_10,_11,_20,_21,_30,_31,     \
-                     _40,_41,_50,_51,_60,_61,_70,_71,NAME,...)  \
-                        StorageServer_ ## NAME
+#define StorageServer_FE_8(WHAT, N,I,R,D, ...) WHAT(N,I,R,D,8) \
+    StorageServer_FE_7(WHAT, N,I, __VA_ARGS__)
+#define StorageServer_GET_MACRO(_00,    \
+    _10,_11,_20,_21,_30,_31,_40,_41,    \
+    _50,_51,_60,_61,_70,_71,_80,_81,    \
+    NAME,...)                           \
+        StorageServer_ ## NAME
 #define StorageServer_FOR_EACH(action, _name_, _inst_, ...)     \
   StorageServer_GET_MACRO(_0,__VA_ARGS__,                       \
-    FE_7,FE_7,FE_6,FE_6,FE_5,FE_5,FE_4,FE_4,                    \
-    FE_3,FE_3,FE_2,FE_2,FE_1,FE_1)                              \
+    FE_8,FE_8,FE_7,FE_7,FE_6,FE_6,FE_5,FE_5,                    \
+    FE_4,FE_4,FE_3,FE_3,FE_2,FE_2,FE_1,FE_1)                    \
         (action,_name_,_inst_,__VA_ARGS__)
 
 // Set a single connection
