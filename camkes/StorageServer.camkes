@@ -31,16 +31,16 @@ struct StorageServer_Config {
                                                                     \
     component _name_ {                                              \
         uses                if_OS_Storage     storage_rpc;          \
-        dataport            Buf               storage_dp;           \
+        dataport            Buf               storage_port;         \
         provides            if_OS_Storage     storageServer_rpc;    \
-        maybe dataport      Buf               storageServer1_dp;    \
-        maybe dataport      Buf               storageServer2_dp;    \
-        maybe dataport      Buf               storageServer3_dp;    \
-        maybe dataport      Buf               storageServer4_dp;    \
-        maybe dataport      Buf               storageServer5_dp;    \
-        maybe dataport      Buf               storageServer6_dp;    \
-        maybe dataport      Buf               storageServer7_dp;    \
-        maybe dataport      Buf               storageServer8_dp;    \
+        maybe dataport      Buf               storageServer1_port;  \
+        maybe dataport      Buf               storageServer2_port;  \
+        maybe dataport      Buf               storageServer3_port;  \
+        maybe dataport      Buf               storageServer4_port;  \
+        maybe dataport      Buf               storageServer5_port;  \
+        maybe dataport      Buf               storageServer6_port;  \
+        maybe dataport      Buf               storageServer7_port;  \
+        maybe dataport      Buf               storageServer8_port;  \
         attribute   StorageServer_Config    storageServer_config;   \
     }
 
@@ -80,7 +80,7 @@ struct StorageServer_Config {
     _name_,                                                 \
     _inst_,                                                 \
     _caller_rpc_,                                           \
-    _caller_dp_,                                            \
+    _caller_port_,                                          \
     _num_)                                                  \
                                                             \
     connection  seL4RPCCall                                 \
@@ -89,9 +89,9 @@ struct StorageServer_Config {
             to      _inst_.storageServer_rpc                \
         );                                                  \
     connection seL4SharedData                               \
-        _name_ ## _ ## _inst_ ## _dp ## _num_ (             \
-            from    _caller_dp_,                            \
-            to      _inst_.storageServer ## _num_ ## _dp    \
+        _name_ ## _ ## _inst_ ## _port ## _num_ (           \
+            from    _caller_port_,                          \
+            to      _inst_.storageServer ## _num_ ## _port  \
         );
 
 /*
@@ -112,7 +112,7 @@ struct StorageServer_Config {
     _name_,                                                                     \
     _inst_,                                                                     \
     _storage_rpc_,                                                              \
-    _storage_dp_,                                                               \
+    _storage_port_,                                                             \
     ...)                                                                        \
                                                                                 \
     component   _name_  _inst_;                                                 \
@@ -122,9 +122,9 @@ struct StorageServer_Config {
             to      _storage_rpc_                                               \
         );                                                                      \
     connection seL4SharedData                                                   \
-        _name_ ## _ ## _inst_ ## _dp (                                          \
-            from    _inst_.storage_dp,                                          \
-            to      _storage_dp_                                                \
+        _name_ ## _ ## _inst_ ## _port (                                        \
+            from    _inst_.storage_port,                                        \
+            to      _storage_port_                                              \
         );                                                                      \
     StorageServer_FOR_EACH(StorageServer_CONNECTION, _name_, _inst_, __VA_ARGS__)
 

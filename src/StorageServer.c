@@ -24,17 +24,17 @@ seL4_Word storageServer_rpc_get_sender_id(void);
 
 // Our dataports for reading from the top and writing down to the actual
 // storage layer; please note that each client has its own dataport
-static OS_Dataport_t outPort = OS_DATAPORT_ASSIGN(storage_dp);
+static OS_Dataport_t outPort = OS_DATAPORT_ASSIGN(storage_port);
 static OS_Dataport_t inPorts[STORAGESERVER_MAX_CLIENTS] =
 {
-    OS_DATAPORT_ASSIGN(storageServer1_dp),
-    OS_DATAPORT_ASSIGN(storageServer2_dp),
-    OS_DATAPORT_ASSIGN(storageServer3_dp),
-    OS_DATAPORT_ASSIGN(storageServer4_dp),
-    OS_DATAPORT_ASSIGN(storageServer5_dp),
-    OS_DATAPORT_ASSIGN(storageServer6_dp),
-    OS_DATAPORT_ASSIGN(storageServer7_dp),
-    OS_DATAPORT_ASSIGN(storageServer8_dp),
+    OS_DATAPORT_ASSIGN(storageServer1_port),
+    OS_DATAPORT_ASSIGN(storageServer2_port),
+    OS_DATAPORT_ASSIGN(storageServer3_port),
+    OS_DATAPORT_ASSIGN(storageServer4_port),
+    OS_DATAPORT_ASSIGN(storageServer5_port),
+    OS_DATAPORT_ASSIGN(storageServer6_port),
+    OS_DATAPORT_ASSIGN(storageServer7_port),
+    OS_DATAPORT_ASSIGN(storageServer8_port),
 };
 
 // Clients we have based on the amount of config data
