@@ -389,6 +389,16 @@ storageServer_rpc_getSize(
     return OS_SUCCESS;
 }
 
+//------------------------------------------------------------------------------
+// This is a CAmkES RPC interface handler. It's guaranteed that "blockSize"
+// never points to NULL.
+OS_Error_t
+NONNULL_ALL
+storageServer_rpc_getBlockSize(
+    size_t* const blockSize)
+{
+    return storage_rpc_getBlockSize(blockSize);
+}
 
 //------------------------------------------------------------------------------
 // This is a CAmkES RPC interface handler. It's guaranteed that "flags"
