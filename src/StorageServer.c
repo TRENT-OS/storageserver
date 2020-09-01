@@ -58,7 +58,7 @@ get_client_port(
     // Due to the way the macros work, the first client in the connection macro
     // (CONNECT_INSTANCE_StorageServer) always has the highest ID; so we need
     // to invert the mapping here
-    return &inPorts[clients - cid];
+    return &inPorts[cid - 1];
 }
 
 //------------------------------------------------------------------------------
