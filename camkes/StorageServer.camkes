@@ -1,5 +1,5 @@
 /*
- *  Provisioned RamDisk CAmkES Component
+ *  StorageServer CAmkES Component
  *
  *  Copyright (C) 2020, Hensoldt Cyber GmbH
  *
@@ -138,7 +138,6 @@ struct StorageServer_Config {
     FE_4,FE_4,FE_3,FE_3,FE_2,FE_2,FE_1,FE_1)                    \
         (action,_name_,_inst_,__VA_ARGS__)
 
-
 // Set a single connection
 #define StorageServer_CONNECTION(                           \
     _name_,                                                 \
@@ -169,7 +168,7 @@ struct StorageServer_Config {
  *          client1.storage_rpc, client1.storage_port,
  *          client2.storage_rpc, client2.storage_port)
  *
- * Here the RamDisk storage interface is multiplexed onto three clients,
+ * Here the the storage provided by a RamDisk is multiplexed onto three clients,
  * which all need their individual configuration..
  */
 #define DECLARE_AND_CONNECT_INSTANCE_StorageServer(                             \
@@ -210,19 +209,22 @@ struct StorageServer_Config {
     },
 
 /*
- * For every client we have connected above, we need to configure a
- * (offset, size) tuple, e.g.,
+ * For every client we have connected above, we need to configure a (offset,
+ * size) tuple, e.g.,
  *
  *      CONFIGURE_INSTANCE_StorageServer(
  *          storageServer
  *          0, 1024,        // start at offset 0, have 1024 bytes
- *          0, 4096,        // start at offset 1024+0, have 4096 bytes
- *          1024, 512       // start at offset 1024+4096+1024, have 512 bytes
+ *          0, 4096,        // start at offset 0, have 4096 bytes
+ *          1024+4096, 512  // start at offset 1024+4096, have 512 bytes
  *      )
  *
  * If multiple clients are given, their respective address ranges are
- * mapped based on their sizes and offsets; if no offsets are given,
- * the target address range is continous. There can NEVER be an overlap!
+ * mapped based on their sizes and offsets.
+ *
+ * Please note that we use absolute addressing here, so address ranges can
+ * overlap (as is shown in the example above, where client 1 and client 2 have
+ * 1024 bytes of overlap)!!
  */
 #define CONFIGURE_INSTANCE_StorageServer(                                           \
     _inst_,                                                                         \
