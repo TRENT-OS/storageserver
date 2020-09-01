@@ -202,7 +202,7 @@ storageServer_rpc_write(
     }
 
     Debug_LOG_DEBUG(
-        "write from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX " ), "
+        "write from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX "), "
         "len %zu",
         cid,
         offset,
