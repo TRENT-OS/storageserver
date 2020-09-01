@@ -49,7 +49,7 @@ static OS_Dataport_t*
 get_client_port(
     const unsigned int cid)
 {
-    if (cid > clients)
+    if (cid < 1 || cid > clients)
     {
         Debug_LOG_ERROR("client ID %u invalid", cid);
         return NULL;
@@ -66,7 +66,7 @@ static const struct StorageServer_ClientConfig*
 get_client_partition_config(
     const unsigned int cid)
 {
-    if (cid > clients)
+    if (cid < 1 || cid > clients)
     {
         Debug_LOG_ERROR("client ID %u invalid", cid);
         return NULL;
