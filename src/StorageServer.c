@@ -94,17 +94,17 @@ get_absolute_offset(
         return false;
     }
 
-    off_t const abs_start_offet = p->offset + offset;
+    off_t const abs_start_offset = p->offset + offset;
     // check overflow
-    if (abs_start_offet < p->offset)
+    if (abs_start_offset < p->offset)
     {
         Debug_LOG_ERROR("invalid offset %" PRIiMAX, offset);
         return false;
     }
 
-    off_t const end = abs_start_offet + size;
+    off_t const end = abs_start_offset + size;
     // check overflow
-    if (end < abs_start_offet)
+    if (end < abs_start_offset)
     {
         Debug_LOG_ERROR("invalid size %d", size);
         return false;
@@ -116,7 +116,7 @@ get_absolute_offset(
         return false;
     }
 
-    *abs_offset = abs_start_offet;
+    *abs_offset = abs_start_offset;
     return true;
 }
 
@@ -201,7 +201,7 @@ storageServer_rpc_write(
     }
 
     Debug_LOG_DEBUG(
-        "write from client %u, offet=%" PRIiMAX " (-> %" PRIiMAX " ), "
+        "write from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX " ), "
         "len %zu",
         cid,
         offset,
@@ -273,7 +273,7 @@ storageServer_rpc_read(
     }
 
     Debug_LOG_DEBUG(
-        "read from client %u, offet=%" PRIiMAX " (-> %" PRIiMAX "), len %zu",
+        "read from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX "), len %zu",
         cid,
         offset,
         off,
@@ -348,7 +348,7 @@ storageServer_rpc_erase(
     }
 
     Debug_LOG_DEBUG(
-        "erase from client %u, offet=%" PRIiMAX " (-> %" PRIiMAX
+        "erase from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX
         "), len %" PRIiMAX,
         cid,
         offset,
