@@ -187,7 +187,7 @@ storageServer_rpc_write(
     {
         Debug_LOG_ERROR(
             "Offset out of bounds for this client. "
-            "offset = %" PRIiMAX ", size = %zu, partitionSize = %i",
+            "offset = %" PRIiMAX ", size = %zu, partitionSize = %" PRId64,
             offset,
             size,
             get_client_partition_config(cid)->size);
@@ -258,7 +258,7 @@ storageServer_rpc_read(
     {
         Debug_LOG_ERROR(
             "Offset out of bounds for this client. "
-            "offset = %" PRIiMAX ", size = %zu, partitionSize = %i",
+            "offset = %" PRIiMAX ", size = %zu, partitionSize = %" PRId64,
             offset,
             size,
             get_client_partition_config(cid)->size);
@@ -333,7 +333,7 @@ storageServer_rpc_erase(
     {
         Debug_LOG_ERROR(
             "Offset out of bounds for this client. "
-            "offset = %" PRIiMAX ", size = %" PRIiMAX ", partitionSize = %i",
+            "offset = %" PRIiMAX ", size = %" PRIiMAX ", partitionSize = %" PRId64,
             offset,
             size,
             get_client_partition_config(cid)->size);
@@ -475,14 +475,14 @@ post_init(
                 &storageServer_config.clients[i];
 
         Debug_LOG_INFO(
-            "client %i: offset=%zu, size=%zu",
+            "client %i: offset=%" PRId64", size=%" PRId64,
             i + 1, cli_part->offset, cli_part->size);
 
         off_t part_end = cli_part->offset + cli_part->size;
         if (part_end < cli_part->offset)
         {
             Debug_LOG_ERROR(
-                "client %i configuration invalid, offset=%d, size=%d",
+                "client %i configuration invalid, offset=%" PRId64", size=%" PRId64,
                 i,
                 cli_part->offset,
                 cli_part->size);
@@ -492,7 +492,7 @@ post_init(
         {
             Debug_LOG_ERROR(
                 "client %i configuration invalid, offset %" PRIiMAX
-                " behind used space %d",
+                " behind used space %" PRId64,
                 i,
                 range,
                 cli_part->offset);
