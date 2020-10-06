@@ -18,8 +18,8 @@ import <if_OS_Storage.camkes>;
 // Component
 
 struct StorageServer_ClientConfig {
-    int size;
-    int offset;
+    int64_t size;
+    int64_t offset;
 }
 
 struct StorageServer_Config {
