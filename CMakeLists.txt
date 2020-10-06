@@ -27,7 +27,7 @@ macro(DeclareCAmkESComponent_StorageServer name)
     DeclareCAmkESComponent(
         ${name}
         SOURCES
-            ${STORAGESERVER_DIR}/src/StorageServer.c
+            ${STORAGESERVER_DIR}/server/src/storageServer_rpc.c
         C_FLAGS
             -Wall
             -Werror
