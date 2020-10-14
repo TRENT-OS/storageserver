@@ -1,5 +1,5 @@
 #
-# Makefile of StorageServer
+# StorageServer
 #
 # Copyright (C) 2020, Hensoldt Cyber GmbH
 #
