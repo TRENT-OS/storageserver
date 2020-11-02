@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.17)
 #
 # Declare StorageServer CAmkES Component
 
-function(DeclareCAmkESComponent_StorageServer name)
+function(StorageServer_DeclareCAmkESComponent name)
 
     DeclareCAmkESComponent(
         ${name}
