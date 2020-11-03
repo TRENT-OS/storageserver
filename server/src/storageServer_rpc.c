@@ -397,6 +397,12 @@ NONNULL_ALL
 storageServer_rpc_getBlockSize(
     size_t* const blockSize)
 {
+    if (!init_ok)
+    {
+        Debug_LOG_ERROR("fail call since initialization failed");
+        return OS_ERROR_INVALID_STATE;
+    }
+
     return storage_rpc_getBlockSize(blockSize);
 }
 
