@@ -464,13 +464,15 @@ post_init(
 
     // Check the amount of bytes we have available on the lower device
     off_t sz = 0;
-    if ((err = storage_rpc_getSize(&sz)) != OS_SUCCESS)
+    if ((err = storage_rpc_getSize(&sz)) == OS_SUCCESS)
     {
-        Debug_LOG_ERROR("storage_rpc_getSize() failed with %d", err);
-        return;
+        Debug_LOG_INFO("storage medium size: %" PRIiMAX " bytes", sz);
+    }
+    else
+    {
+        Debug_LOG_WARNING("storage_rpc_getSize() failed with %d", err);
     }
 
-    Debug_LOG_INFO("storage medium size: %" PRIiMAX " bytes", sz);
 
     // Make sure we can fit all the clients with their sizes and offsets in
     // this underlying storage.
