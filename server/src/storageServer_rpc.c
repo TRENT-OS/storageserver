@@ -381,7 +381,7 @@ storageServer_rpc_getSize(
     if (NULL == p)
     {
         Debug_LOG_ERROR("no configuration for client ID %u", cid);
-        return false;
+        return OS_ERROR_INVALID_STATE;
     }
 
     *size = p->size;
