@@ -386,7 +386,39 @@ storageServer_rpc_getSize(
 
     *size = p->size;
 
-    return OS_SUCCESS;
+    // We need to forward the error code of the underlying storage e.g. in case
+    // if the medium is not present, so that StorageServer is transparent.
+    //
+    // Additionally we can verify the config server configuration and raise the
+    // warning.
+    off_t storageSize;
+    const OS_Error_t rslt = storage_rpc_getSize(&storageSize);
+
+    if (rslt != OS_SUCCESS)
+    {
+        Debug_LOG_ERROR(
+            "storage_rpc_getSize() failed. Unable to read the underlying "
+            "storage size. Error code: %i", rslt);
+
+        return rslt;
+    }
+
+    // We don't care about the `size + offset` overflow, because there is no
+    // true impact beside sending a warning message, and the overflow is
+    // detected in the `post_init` function.
+    if(storageSize < (p->size + p->offset))
+    {
+        Debug_LOG_WARNING(
+            "The underlying storage is too small. Check StorageServer config:"
+            " storageSize = %" PRIiMAX
+            " clientStorageSize = %" PRIiMAX
+            " clientStorageOffset = %" PRIiMAX,
+            storageSize,
+            p->size,
+            p->offset);
+    }
+
+    return rslt;
 }
 
 //------------------------------------------------------------------------------
