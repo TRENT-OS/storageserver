@@ -8,236 +8,145 @@
  *
  *      #include "StorageServer/camkes/StorageServer.camkes"
  *
- *      DECLARE_COMPONENT_StorageServer(StorageServer)
+ *      StorageServer_COMPONENT_DECLARE(StorageServer)
  *
  */
 
 import <if_OS_Storage.camkes>;
 
+#include "LibMacros/ForEach.h"
+
+
 //------------------------------------------------------------------------------
-// Component
+
 
 struct StorageServer_ClientConfig {
     int64_t size;
     int64_t offset;
 }
 
+
 struct StorageServer_Config {
     StorageServer_ClientConfig clients[];
 }
 
-#define DECLARE_COMPONENT_StorageServer(                            \
-    _name_)                                                         \
-                                                                    \
-    component _name_ {                                              \
-        uses                if_OS_Storage     storage_rpc;          \
-        dataport            Buf               storage_port;         \
-        provides            if_OS_Storage     storageServer_rpc;    \
-        maybe dataport      Buf               storageServer1_port;  \
-        maybe dataport      Buf               storageServer2_port;  \
-        maybe dataport      Buf               storageServer3_port;  \
-        maybe dataport      Buf               storageServer4_port;  \
-        maybe dataport      Buf               storageServer5_port;  \
-        maybe dataport      Buf               storageServer6_port;  \
-        maybe dataport      Buf               storageServer7_port;  \
-        maybe dataport      Buf               storageServer8_port;  \
-        attribute   StorageServer_Config    storageServer_config;   \
+
+#define StorageServer_COMPONENT_DECLARE( \
+    _name_) \
+    \
+    component _name_ { \
+        uses                if_OS_Storage     storage_rpc; \
+        dataport            Buf               storage_port; \
+        provides            if_OS_Storage     storageServer_rpc; \
+        maybe dataport      Buf               storageServer1_port; \
+        maybe dataport      Buf               storageServer2_port; \
+        maybe dataport      Buf               storageServer3_port; \
+        maybe dataport      Buf               storageServer4_port; \
+        maybe dataport      Buf               storageServer5_port; \
+        maybe dataport      Buf               storageServer6_port; \
+        maybe dataport      Buf               storageServer7_port; \
+        maybe dataport      Buf               storageServer8_port; \
+        attribute   StorageServer_Config      storageServer_config;  \
     }
 
 
 //------------------------------------------------------------------------------
-// Instance Connection
 
-// In contrast to the usual FE macro construction, we need to have a separate
-// FE chain for every possible number of clients, because we need to make sure
-// that the first element in the list is always assigned the ID=1, then ID=2,
-// etc.
 
-// ------------------------------------------------------------
-#define StorageServer_FE_8_1(WHAT, N,I,R,E)      WHAT(N,I,R,E,8)
-#define StorageServer_FE_8_2(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,7) \
-    StorageServer_FE_8_1(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_8_3(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,6) \
-    StorageServer_FE_8_2(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_8_4(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,5) \
-    StorageServer_FE_8_3(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_8_5(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,4) \
-    StorageServer_FE_8_4(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_8_6(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,3) \
-    StorageServer_FE_8_5(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_8_7(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,2) \
-    StorageServer_FE_8_6(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_8(WHAT, N,I,R,E, ...)   WHAT(N,I,R,E,1) \
-    StorageServer_FE_8_7(WHAT, N,I, __VA_ARGS__)
-// ------------------------------------------------------------
-#define StorageServer_FE_7_1(WHAT, N,I,R,E)      WHAT(N,I,R,E,7)
-#define StorageServer_FE_7_2(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,6) \
-    StorageServer_FE_7_1(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_7_3(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,5) \
-    StorageServer_FE_7_2(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_7_4(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,4) \
-    StorageServer_FE_7_3(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_7_5(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,3) \
-    StorageServer_FE_7_4(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_7_6(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,2) \
-    StorageServer_FE_7_5(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_7(WHAT, N,I,R,E, ...)   WHAT(N,I,R,E,1) \
-    StorageServer_FE_7_6(WHAT, N,I, __VA_ARGS__)
-// ------------------------------------------------------------
-#define StorageServer_FE_6_1(WHAT, N,I,R,E)      WHAT(N,I,R,E,6)
-#define StorageServer_FE_6_2(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,5) \
-    StorageServer_FE_6_1(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_6_3(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,4) \
-    StorageServer_FE_6_2(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_6_4(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,3) \
-    StorageServer_FE_6_3(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_6_5(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,2) \
-    StorageServer_FE_6_4(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_6(WHAT, N,I,R,E, ...)   WHAT(N,I,R,E,1) \
-    StorageServer_FE_6_5(WHAT, N,I, __VA_ARGS__)
-// ------------------------------------------------------------
-#define StorageServer_FE_5_1(WHAT, N,I,R,E)      WHAT(N,I,R,E,5)
-#define StorageServer_FE_5_2(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,4) \
-    StorageServer_FE_5_1(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_5_3(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,3) \
-    StorageServer_FE_5_2(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_5_4(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,2) \
-    StorageServer_FE_5_3(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_5(WHAT, N,I,R,E, ...)   WHAT(N,I,R,E,1) \
-    StorageServer_FE_5_4(WHAT, N,I, __VA_ARGS__)
-// ------------------------------------------------------------
-#define StorageServer_FE_4_1(WHAT, N,I,R,E)      WHAT(N,I,R,E,4)
-#define StorageServer_FE_4_2(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,3) \
-    StorageServer_FE_4_1(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_4_3(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,2) \
-    StorageServer_FE_4_2(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_4(WHAT, N,I,R,E, ...)   WHAT(N,I,R,E,1) \
-    StorageServer_FE_4_3(WHAT, N,I, __VA_ARGS__)
-// ------------------------------------------------------------
-#define StorageServer_FE_3_1(WHAT, N,I,R,E)      WHAT(N,I,R,E,3)
-#define StorageServer_FE_3_2(WHAT, N,I,R,E, ...) WHAT(N,I,R,E,2) \
-    StorageServer_FE_3_1(WHAT, N,I, __VA_ARGS__)
-#define StorageServer_FE_3(WHAT, N,I,R,E, ...)   WHAT(N,I,R,E,1) \
-    StorageServer_FE_3_2(WHAT, N,I, __VA_ARGS__)
-// ------------------------------------------------------------
-#define StorageServer_FE_2_1(WHAT, N,I,R,E)      WHAT(N,I,R,E,2)
-#define StorageServer_FE_2(WHAT, N,I,R,E, ...)   WHAT(N,I,R,E,1) \
-    StorageServer_FE_2_1(WHAT, N,I, __VA_ARGS__)
-// ------------------------------------------------------------
-#define StorageServer_FE_1(WHAT, N,I,R,E)        WHAT(N,I,R,E,1)
-
-#define StorageServer_GET_MACRO(_00,    \
-    _10,_11,_20,_21,_30,_31,_40,_41,    \
-    _50,_51,_60,_61,_70,_71,_80,_81,    \
-    NAME,...)                           \
-        StorageServer_ ## NAME
-
-#define StorageServer_FOR_EACH(action, _name_, _inst_, ...)     \
-  StorageServer_GET_MACRO(_0,__VA_ARGS__,                       \
-    FE_8,FE_8,FE_7,FE_7,FE_6,FE_6,FE_5,FE_5,                    \
-    FE_4,FE_4,FE_3,FE_3,FE_2,FE_2,FE_1,FE_1)                    \
-        (action,_name_,_inst_,__VA_ARGS__)
-
-// Set a single connection
-#define StorageServer_CONNECTION(                           \
-    _name_,                                                 \
-    _inst_,                                                 \
-    _caller_rpc_,                                           \
-    _caller_port_,                                          \
-    _num_)                                                  \
-                                                            \
-    connection  seL4RPCCall                                 \
-        _name_ ## _ ## _inst_ ## _rpc ## _num_ (            \
-            from    _caller_rpc_,                           \
-            to      _inst_.storageServer_rpc                \
-        );                                                  \
-    connection seL4SharedData                               \
-        _name_ ## _ ## _inst_ ## _port ## _num_ (           \
-            from    _caller_port_,                          \
-            to      _inst_.storageServer ## _num_ ## _port  \
+#define StorageServer_INSTANCE_CONNECT( \
+    _inst_, \
+    _rpc_, \
+    _port_) \
+    \
+    connection  seL4RPCCall \
+        _inst_ ## _rpc( \
+            from    _inst_.storage_rpc, \
+            to      _rpc_ \
+        ); \
+    connection seL4SharedData \
+        _inst_ ## _port( \
+            from    _inst_.storage_port, \
+            to      _port_ \
         );
 
-/*
- * With the macro magic above we can use this macro with more than one
- * client, i.e.,
- *
- *      DECLARE_AND_CONNECT_INSTANCE_StorageServer(
- *          StorageServer, storageServer
- *          ramDisk.storage_rpc, ramDisk.storage_port,
- *          client0.storage_rpc, client0.storage_port,
- *          client1.storage_rpc, client1.storage_port,
- *          client2.storage_rpc, client2.storage_port)
- *
- * Here the the storage provided by a RamDisk is multiplexed onto three clients,
- * which all need their individual configuration..
- */
-#define DECLARE_AND_CONNECT_INSTANCE_StorageServer(                             \
-    _name_,                                                                     \
-    _inst_,                                                                     \
-    _storage_rpc_,                                                              \
-    _storage_port_,                                                             \
-    ...)                                                                        \
-                                                                                \
-    component   _name_  _inst_;                                                 \
-    connection  seL4RPCCall                                                     \
-        _name_ ## _ ## _inst_ ## _rpc   (                                       \
-            from    _inst_.storage_rpc,                                         \
-            to      _storage_rpc_                                               \
-        );                                                                      \
-    connection seL4SharedData                                                   \
-        _name_ ## _ ## _inst_ ## _port (                                        \
-            from    _inst_.storage_port,                                        \
-            to      _storage_port_                                              \
-        );                                                                      \
-    StorageServer_FOR_EACH(StorageServer_CONNECTION, _name_, _inst_, __VA_ARGS__)
 
 //------------------------------------------------------------------------------
-// Instance Configuration
 
-// We need to ignore a few arguments here, as we don't care about them but
-// like this we can still re-use the FE_xx macros
-#define StorageServer_CONFIGURATION(    \
-    _0,                                 \
-    _1,                                 \
-    _offset_,                           \
-    _size_,                             \
-    _2)                                 \
-                                        \
-    {                                   \
-        "offset": _offset_,             \
-        "size":   _size_,               \
+
+#define StorageServer_CLIENT_CONNECTOR( \
+    _inst_, \
+    _unused_, \
+    _rpc_, \
+    _port_, \
+    _num_) \
+    \
+    connection  seL4RPCCall \
+        _inst_ ## _rpc ## _num_( \
+            from    _rpc_, \
+            to      _inst_.storageServer_rpc \
+        ); \
+    connection seL4SharedData \
+        _inst_ ## _port ## _num_( \
+            from    _port_, \
+            to      _inst_.storageServer ## _num_ ## _port \
+        );
+
+
+#define StorageServer_INSTANCE_CONNECT_CLIENTS( \
+    _inst_, \
+    ...) \
+    \
+    FOR_EACH_2P(StorageServer_CLIENT_CONNECTOR,_inst_,UNUSED,__VA_ARGS__)
+
+
+//------------------------------------------------------------------------------
+
+
+#define StorageServer_INSTANCE_CONFIGURATOR( \
+    _unused0, \
+    _unused1_, \
+    _offset_, \
+    _size_, \
+    _unused2_) \
+    \
+    { \
+        "offset": _offset_, \
+        "size":   _size_, \
     },
 
-/*
- * For every client we have connected above, we need to configure a (offset,
- * size) tuple, e.g.,
- *
- *      CONFIGURE_INSTANCE_StorageServer(
- *          storageServer
- *          0, 1024,        // start at offset 0, have 1024 bytes
- *          0, 4096,        // start at offset 0, have 4096 bytes
- *          1024+4096, 512  // start at offset 1024+4096, have 512 bytes
- *      )
- *
- * If multiple clients are given, their respective address ranges are
- * mapped based on their sizes and offsets.
- *
- * Please note that we use absolute addressing here, so address ranges can
- * overlap (as is shown in the example above, where client 1 and client 2 have
- * 1024 bytes of overlap)!!
- */
-#define CONFIGURE_INSTANCE_StorageServer(                                           \
-    _inst_,                                                                         \
-    ...)                                                                            \
-                                                                                    \
-    _inst_.storageServer_config = {                                                 \
-        "clients": [                                                                \
-            StorageServer_FOR_EACH(StorageServer_CONFIGURATION, 0, 0, __VA_ARGS__)  \
-        ]                                                                           \
+
+#define StorageServer_INSTANCE_CONFIGURE_CLIENTS( \
+    _inst_, \
+    ...) \
+    \
+    _inst_.storageServer_config = { \
+        "clients": [ \
+            FOR_EACH_2P(StorageServer_INSTANCE_CONFIGURATOR, \
+                        UNUSED,UNUSED,__VA_ARGS__) \
+        ] \
     };
 
-//------------------------------------------------------------------------------
-// Assignments for instance
 
-#define ASSIGN_CLIENT_BADGE_StorageServer(_client_, _storage_rpc_, _val_) \
-    _client_._storage_rpc_ ## _attributes = _val_;
+//------------------------------------------------------------------------------
+
+
+#define StorageServer_BADGE_ASSIGNER( \
+    _unused0_, \
+    _unused1_, \
+    _rpc_, \
+    _num_) \
+    \
+    _rpc_ ## _attributes = _num_;
+
+
+#define StorageServer_CLIENT_ASSIGN_BADGE( \
+    _client_rpc_, \
+    _val_) \
+    \
+    _client_rpc_ ## _attributes = _val_;
+
+
+#define StorageServer_CLIENT_ASSIGN_BADGES( \
+    ...) \
+    \
+    FOR_EACH_1P(StorageServer_BADGE_ASSIGNER,UNUSED,UNUSED,__VA_ARGS__)
