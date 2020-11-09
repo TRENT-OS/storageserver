@@ -9,8 +9,8 @@
  *
  *      #include "StorageServer/camkes/StorageServer.camkes"
  *
- *      StorageServer_COMPONENT_DECLARE(StorageServer_1)
- *      StorageServer_COMPONENT_DECLARE(StorageServer_2)
+ *      StorageServer_COMPONENT_DEFINE(StorageServer_1)
+ *      StorageServer_COMPONENT_DEFINE(StorageServer_2)
  *
  */
 
@@ -36,11 +36,11 @@ struct StorageServer_Config {
 /*
  * Declare the StorageServer with a given type name:
  *
- *      StorageServer_COMPONENT_DECLARE(
+ *      StorageServer_COMPONENT_DEFINE(
  *          <name>
  *      )
  */
-#define StorageServer_COMPONENT_DECLARE( \
+#define StorageServer_COMPONENT_DEFINE( \
     _name_) \
     \
     component _name_ { \
