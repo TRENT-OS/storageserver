@@ -23,6 +23,9 @@ seL4_Word storageServer_rpc_get_sender_id(void);
 // ports and also the macros for instantiating the server need to be adjusted.
 #define STORAGESERVER_MAX_CLIENTS 8
 
+// Translate between badge IDs and array index
+#define CID_TO_IDX(cid) ((cid)-101)
+
 // Our dataports for reading from the top and writing down to the actual
 // storage layer; please note that each client has its own dataport
 static OS_Dataport_t outPort = OS_DATAPORT_ASSIGN(storage_port);
@@ -49,16 +52,15 @@ static OS_Dataport_t*
 get_client_port(
     const unsigned int cid)
 {
-    if (cid < 1 || cid > clients)
+    const int idx = CID_TO_IDX(cid);
+
+    if (idx < 0 || idx >= clients)
     {
         Debug_LOG_ERROR("client ID %u invalid", cid);
         return NULL;
     }
 
-    // Due to the way the macros work, the first client in the connection macro
-    // (CONNECT_INSTANCE_StorageServer) always has the highest ID; so we need
-    // to invert the mapping here
-    return &inPorts[cid - 1];
+    return &inPorts[idx];
 }
 
 //------------------------------------------------------------------------------
@@ -66,14 +68,15 @@ static const struct StorageServer_ClientConfig*
 get_client_partition_config(
     const unsigned int cid)
 {
-    if (cid < 1 || cid > clients)
+    const int idx = CID_TO_IDX(cid);
+
+    if (idx < 0 || idx >= clients)
     {
         Debug_LOG_ERROR("client ID %u invalid", cid);
         return NULL;
     }
 
-    // map the badge id into the config struct
-    return &storageServer_config.clients[cid - 1];
+    return &storageServer_config.clients[idx];
 }
 
 //------------------------------------------------------------------------------
