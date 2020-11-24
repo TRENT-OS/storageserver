@@ -478,13 +478,13 @@ post_init(
     // we can deal with this later if it should be necessary..
     for (i = 0; i < clients; i++)
     {
-        if (OS_Dataport_isUnset(inPorts[clients - i - 1]))
+        if (OS_Dataport_isUnset(inPorts[i]))
         {
             Debug_LOG_ERROR("Dataport %i is unset, it should be connected "
                             "to the respective client", i);
             return;
         }
-        dp_in_size = OS_Dataport_getSize(inPorts[clients - i - 1]);
+        dp_in_size = OS_Dataport_getSize(inPorts[i]);
         if (dp_in_size != dp_out_size)
         {
             Debug_LOG_ERROR(
