@@ -22,7 +22,8 @@ function(StorageServer_DeclareCAmkESComponent name)
             -Werror
         LIBS
             os_core_api
-            os_libs
+            lib_debug
+            lib_macros
     )
 
 endfunction()
