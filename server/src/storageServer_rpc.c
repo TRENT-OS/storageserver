@@ -176,11 +176,16 @@ storageServer_rpc_write(
         return OS_ERROR_INVALID_PARAMETER;
     }
 
-    if (size > OS_Dataport_getSize(outPort))
+    size_t maxOutPortSize = OS_Dataport_getSize(outPort);
+    if (size > max_size)
     {
-        // our lower data port is not big enough for this request, but the
-        // client can know this. We could write the data in chunks here instead
-        // of failing the request
+        // Our lower data port is not big enough for this request, which is
+        // something the client should know from the system configuration. We
+        // could write the data in chunks here instead of failing the request,
+        // but that is currently not implemented.
+        Debug_LOG_ERROR(
+            "[CID %"SEL4_PRI_word"] size %zu exceed max supported size %zu",
+            cid, size, maxOutPortSize);
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
@@ -248,11 +253,16 @@ storageServer_rpc_read(
         return OS_ERROR_INVALID_PARAMETER;
     }
 
-    if (size > OS_Dataport_getSize(outPort))
+    size_t maxOutPortSize = OS_Dataport_getSize(outPort)
+    if (size > max_size)
     {
-        // our lower data port is not big enough for this request, but the
-        // client can know this. We could read the data in chunks here instead
-        // of failing the request
+        // Our lower data port is not big enough for this request, which is
+        // something the client should know from the system configuration. We
+        // could write the data in chunks here instead of failing the request,
+        // but that is currently not implemented.
+        Debug_LOG_ERROR(
+            "[CID %"SEL4_PRI_word"] size %zu exceed max supported size %zu",
+            cid, size, maxOutPortSize);
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
