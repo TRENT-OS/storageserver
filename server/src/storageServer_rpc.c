@@ -157,7 +157,8 @@ storageServer_rpc_write(
     size_t  const size,
     size_t* const written)
 {
-    *written = 0U;
+    *written = 0; // set default return value
+
     seL4_Word cid = storageServer_rpc_get_sender_id();
     OS_Dataport_t* inPort;
 
@@ -228,7 +229,8 @@ storageServer_rpc_read(
     size_t  const size,
     size_t* const read)
 {
-    *read = 0U;
+    *read = 0; // set default return value
+
     seL4_Word cid = storageServer_rpc_get_sender_id();
     OS_Dataport_t* inPort;
 
@@ -319,7 +321,7 @@ storageServer_rpc_erase(
     off_t  const size,
     off_t* const erased)
 {
-    *erased = 0;
+    *erased = 0; // set default return value
 
     if (!init_ok)
     {
@@ -372,6 +374,8 @@ NONNULL_ALL
 storageServer_rpc_getSize(
     off_t* const size)
 {
+    *size = 0; // set default return value
+
     if (!init_ok)
     {
         Debug_LOG_ERROR("fail call since initialization failed");
@@ -433,6 +437,8 @@ NONNULL_ALL
 storageServer_rpc_getBlockSize(
     size_t* const blockSize)
 {
+    *blockSize = 0; // set default return value
+
     if (!init_ok)
     {
         Debug_LOG_ERROR("fail call since initialization failed");
@@ -450,6 +456,8 @@ NONNULL_ALL
 storageServer_rpc_getState(
     uint32_t* flags)
 {
+    *flags = 0; // set default return value
+
     if (!init_ok)
     {
         Debug_LOG_ERROR("fail call since initialization failed");
