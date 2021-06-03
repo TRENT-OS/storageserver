@@ -528,8 +528,7 @@ post_init(
     }
 
 
-    // Make sure we can fit all the clients with their sizes and offsets in
-    // this underlying storage.
+    // Make sure all partitions fit in the underlying storage.
     off_t range = 0;
     for (unsigned int i = 0; i < clients; i++)
     {
@@ -537,14 +536,14 @@ post_init(
                 &storageServer_config.clients[i];
 
         Debug_LOG_INFO(
-            "client %i: offset=%" PRId64", size=%" PRId64,
-            i + 1, cli_part->offset, cli_part->size);
+            "partition %u: offset=%" PRId64", size=%" PRId64,
+            i, cli_part->offset, cli_part->size);
 
         off_t part_end = cli_part->offset + cli_part->size;
         if (part_end < cli_part->offset)
         {
             Debug_LOG_ERROR(
-                "client %i configuration invalid, offset=%" PRId64", size=%" PRId64,
+                "partition %u configuration invalid, offset=%" PRId64", size=%" PRId64,
                 i,
                 cli_part->offset,
                 cli_part->size);
@@ -553,7 +552,7 @@ post_init(
         if (cli_part->offset < range)
         {
             Debug_LOG_ERROR(
-                "client %i configuration invalid, offset %" PRIiMAX
+                "partition %u configuration invalid, offset %" PRIiMAX
                 " behind used space %" PRId64,
                 i,
                 range,
