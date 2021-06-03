@@ -56,7 +56,7 @@ get_client_port(
 
     if (idx < 0 || idx >= clients)
     {
-        Debug_LOG_ERROR("client ID %u invalid", cid);
+        Debug_LOG_ERROR("client ID %"SEL4_PRI_word" invalid", cid);
         return NULL;
     }
 
@@ -72,7 +72,7 @@ get_client_partition_config(
 
     if (idx < 0 || idx >= clients)
     {
-        Debug_LOG_ERROR("client ID %u invalid", cid);
+        Debug_LOG_ERROR("client ID %"SEL4_PRI_word" invalid", cid);
         return NULL;
     }
 
@@ -93,7 +93,7 @@ get_absolute_offset(
     const struct StorageServer_ClientConfig* p = get_client_partition_config(cid);
     if (NULL == p)
     {
-        Debug_LOG_ERROR("no configuration for client ID %u", cid);
+        Debug_LOG_ERROR("no configuration for client ID %"SEL4_PRI_word, cid);
         return false;
     }
 
@@ -109,13 +109,13 @@ get_absolute_offset(
     // check overflow
     if (end < abs_start_offset)
     {
-        Debug_LOG_ERROR("invalid size %d", size);
+        Debug_LOG_ERROR("invalid size %zu", size);
         return false;
     }
 
     if (size > p->size)
     {
-        Debug_LOG_ERROR("size %d exceeds partition size", size);
+        Debug_LOG_ERROR("size %zu exceeds partition size", size);
         return false;
     }
 
@@ -205,8 +205,8 @@ storageServer_rpc_write(
     }
 
     Debug_LOG_DEBUG(
-        "write from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX "), "
-        "len %zu",
+        "write from client %"SEL4_PRI_word", offset=%" PRIiMAX " (-> "
+        "%" PRIiMAX "), len %zu",
         cid,
         offset,
         off,
@@ -275,7 +275,8 @@ storageServer_rpc_read(
     }
 
     Debug_LOG_DEBUG(
-        "read from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX "), len %zu",
+        "read from client %"SEL4_PRI_word", offset=%" PRIiMAX " (-> %" PRIiMAX
+        "), len %zu",
         cid,
         offset,
         off,
@@ -352,7 +353,7 @@ storageServer_rpc_erase(
     }
 
     Debug_LOG_DEBUG(
-        "erase from client %u, offset=%" PRIiMAX " (-> %" PRIiMAX
+        "erase from client %"SEL4_PRI_word", offset=%" PRIiMAX " (-> %" PRIiMAX
         "), len %" PRIiMAX,
         cid,
         offset,
@@ -383,7 +384,7 @@ storageServer_rpc_getSize(
     const struct StorageServer_ClientConfig* p = get_client_partition_config(cid);
     if (NULL == p)
     {
-        Debug_LOG_ERROR("no configuration for client ID %u", cid);
+        Debug_LOG_ERROR("no configuration for client ID %"SEL4_PRI_word, cid);
         return OS_ERROR_INVALID_STATE;
     }
 
@@ -472,8 +473,8 @@ post_init(
     if (clients > STORAGESERVER_MAX_CLIENTS)
     {
         Debug_LOG_ERROR(
-            "Config contains too many clients (%i), currently we support "
-            "only %i clients", clients, STORAGESERVER_MAX_CLIENTS);
+            "Config contains too many clients (%zu), currently we support "
+            "only %d clients", clients, STORAGESERVER_MAX_CLIENTS);
         return;
     }
 
