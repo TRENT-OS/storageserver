@@ -12,138 +12,158 @@
 #include <stdbool.h>
 #include <string.h>
 #include <inttypes.h>
+#include <limits.h>
 
 #include <camkes.h>
+
+
+#define ARRAY_ELEMENTS(a)   ( sizeof(a) / sizeof(a[0]) )
+
+// Client (badge) ID start with this value.
+#define CID_BASE    101
 
 // Not generated yet by camkes
 seL4_Word storageServer_rpc_get_sender_id(void);
 
-// Currently we support up to this amount of clients; in principle this can be
-// increased arbitrarily, but it has to go along with the same amount of data
-// ports and also the macros for instantiating the server need to be adjusted.
-#define STORAGESERVER_MAX_CLIENTS 8
 
-// Translate between badge IDs and array index
-#define CID_TO_IDX(cid) ((cid)-101)
+typedef struct {
+    OS_Dataport_t                           inPort;
+    const struct StorageServer_ClientConfig *cfg;
+} client_context_t;
 
-// Our dataports for reading from the top and writing down to the actual
-// storage layer; please note that each client has its own dataport
-static OS_Dataport_t outPort = OS_DATAPORT_ASSIGN(storage_port);
-static OS_Dataport_t inPorts[STORAGESERVER_MAX_CLIENTS] =
-{
-    OS_DATAPORT_ASSIGN(storageServer1_port),
-    OS_DATAPORT_ASSIGN(storageServer2_port),
-    OS_DATAPORT_ASSIGN(storageServer3_port),
-    OS_DATAPORT_ASSIGN(storageServer4_port),
-    OS_DATAPORT_ASSIGN(storageServer5_port),
-    OS_DATAPORT_ASSIGN(storageServer6_port),
-    OS_DATAPORT_ASSIGN(storageServer7_port),
-    OS_DATAPORT_ASSIGN(storageServer8_port),
+
+#define CLIENT_CTX_DATAPORT(n) \
+    { \
+        .inPort = OS_DATAPORT_ASSIGN(storageServer ## n ## _port), \
+        .cfg = (((n)-1) < ARRAY_ELEMENTS(storageServer_config.clients)) ? \
+                &storageServer_config.clients[(n)-1] : NULL \
+    }
+
+// The number of clients is fixed, but this is basically an arbitrary number
+// that must match the partition configuration. Note that the dataport index
+// starts counting with 1 and not with zero, that is why CLIENT_CTX_DATAPORT()
+// does not get passed a zero.
+static const client_context_t all_clients[8] = {
+    CLIENT_CTX_DATAPORT(1),
+    CLIENT_CTX_DATAPORT(2),
+    CLIENT_CTX_DATAPORT(3),
+    CLIENT_CTX_DATAPORT(4),
+    CLIENT_CTX_DATAPORT(5),
+    CLIENT_CTX_DATAPORT(6),
+    CLIENT_CTX_DATAPORT(7),
+    CLIENT_CTX_DATAPORT(8),
 };
 
-// Clients we have based on the amount of config data
-static const size_t clients = sizeof(storageServer_config) /
-                              sizeof(struct StorageServer_ClientConfig);
+// dataport shared with lower layer
+static const OS_Dataport_t outPort = OS_DATAPORT_ASSIGN(storage_port);
 
 bool init_ok = false;
 
 // Private Functions -----------------------------------------------------------
-static OS_Dataport_t*
-get_client_port(
-    const unsigned int cid)
-{
-    const int idx = CID_TO_IDX(cid);
-
-    if (idx < 0 || idx >= clients)
-    {
-        Debug_LOG_ERROR("client ID %"SEL4_PRI_word" invalid", cid);
-        return NULL;
-    }
-
-    return &inPorts[idx];
-}
 
 //------------------------------------------------------------------------------
-static const struct StorageServer_ClientConfig*
-get_client_partition_config(
-    const unsigned int cid)
+static
+OS_Error_t
+check_server_and_client_state(
+    seL4_Word cid,
+    const client_context_t **client_ctx)
 {
-    const int idx = CID_TO_IDX(cid);
-
-    if (idx < 0 || idx >= clients)
+    if (client_ctx) // caller might not be interested in the actual client_ctx
     {
-        Debug_LOG_ERROR("client ID %"SEL4_PRI_word" invalid", cid);
-        return NULL;
+        *client_ctx = NULL; // set default value
+    }
+    // Check if server is fully up and running.
+    if (!init_ok)
+    {
+        Debug_LOG_ERROR(
+            "[CID %"SEL4_PRI_word"] server initialization failed, fail call",
+            cid);
+        return OS_ERROR_INVALID_STATE;
     }
 
-    return &storageServer_config.clients[idx];
+    // Check that the caller's ID is in the supported range.
+    if ((cid < CID_BASE) || (cid > CID_BASE + ARRAY_ELEMENTS(all_clients)))
+    {
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] client ID out of range", cid);
+        return OS_ERROR_INVALID_PARAMETER;
+    }
+
+    const client_context_t *my_client_ctx = &all_clients[cid - CID_BASE];
+
+    if (client_ctx) // caller might not be interested in the actual client_ctx
+    {
+        *client_ctx = my_client_ctx;
+    }
+
+    // Check if the client has a partition.
+    if (!my_client_ctx->cfg)
+    {
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] no partition assigned", cid);
+        return OS_ERROR_DEVICE_INVALID;
+    }
+
+    return OS_SUCCESS;
 }
 
+
 //------------------------------------------------------------------------------
-static bool
-get_absolute_offset(
-    const unsigned int cid,
+static
+OS_Error_t
+NONNULL_ALL
+check_request_area(
+    const client_context_t* client_ctx,
     const off_t offset,
     const size_t size,
-    off_t* abs_offset)
+    off_t* p_abs_offset)
 {
-    // set default value
-    *abs_offset = 0;
+    assert(client_ctx->cfg);
 
-    const struct StorageServer_ClientConfig* p = get_client_partition_config(cid);
-    if (NULL == p)
+    *p_abs_offset = 0; // set default value
+
+    int64_t partition_size = client_ctx->cfg->size;
+    assert(partition_size >= 0); // config must be sane
+
+    if (size > partition_size)
     {
-        Debug_LOG_ERROR("no configuration for client ID %"SEL4_PRI_word, cid);
-        return false;
+        Debug_LOG_ERROR(
+            "size %zu exceeds the partition size %"PRId64,
+            size, partition_size);
+        return OS_ERROR_OUT_OF_BOUNDS;
     }
 
-    off_t const abs_start_offset = p->offset + offset;
-    // check overflow
-    if (abs_start_offset < p->offset)
+    // check if area is sane and there are no integer overflow. Since off_t is
+    // signed, we have to reject negative values.
+    if ( (offset < 0) || (offset >= partition_size)
+         || (size < 0) || (size > partition_size - offset))
     {
-        Debug_LOG_ERROR("invalid offset %" PRIiMAX, offset);
-        return false;
+        Debug_LOG_ERROR(
+            "invalid area, offset %" PRIiMAX ", size %zu, partition size %"PRIiMAX,
+            offset, size, partition_size);
+        return OS_ERROR_OUT_OF_BOUNDS;
     }
 
-    off_t const end = abs_start_offset + size;
-    // check overflow
+    int64_t partition_offset = client_ctx->cfg->offset;
+    assert(partition_offset >= 0); // config must be sane
+    const off_t abs_start_offset = partition_offset + offset;
+    // check overflow for absolute offset
+    if (abs_start_offset < partition_offset)
+    {
+        Debug_LOG_ERROR("invalid absolute offset %" PRIiMAX, offset);
+        return OS_ERROR_OUT_OF_BOUNDS;
+    }
+
+    const off_t end = abs_start_offset + size;
+    // check size overflow with absolute offset
     if (end < abs_start_offset)
     {
         Debug_LOG_ERROR("invalid size %zu", size);
-        return false;
+        return OS_ERROR_OUT_OF_BOUNDS;
     }
 
-    if (size > p->size)
-    {
-        Debug_LOG_ERROR("size %zu exceeds partition size", size);
-        return false;
-    }
-
-    *abs_offset = abs_start_offset;
-    return true;
+    *p_abs_offset = abs_start_offset;
+    return OS_SUCCESS;
 }
 
-// All arguments are of type `off_t` on purpose so that the arbitrary large
-// storage can be verified.
-static
-bool
-isValidStorageArea(
-    off_t const offset,
-    off_t const size,
-    off_t const storageSize)
-{
-    // Casting to the biggest possible integer for overflow detection purposes.
-    uintmax_t const end = (uintmax_t)offset + (uintmax_t)size;
-
-    // Checking integer overflow first. The end index is not part of the area,
-    // but we allow offset = end with size = 0 here.
-    //
-    // We also do not accept negative offset and sizes (off_t is signed).
-    return ((offset >= 0)
-            && (size >= 0)
-            && (end >= offset)
-            && (end <= storageSize));
-}
 
 // Public Functions ------------------------------------------------------------
 
@@ -155,72 +175,60 @@ NONNULL_ALL
 storageServer_rpc_write(
     off_t   const offset,
     size_t  const size,
-    size_t* const written)
+    size_t* const p_written)
 {
-    *written = 0; // set default return value
+    OS_Error_t ret;
 
+    *p_written = 0; // set default return value
+
+    // Check if we can handle this client's request.
     seL4_Word cid = storageServer_rpc_get_sender_id();
-    OS_Dataport_t* inPort;
-
-    if (!init_ok)
+    const  client_context_t *client_ctx = NULL;
+    ret = check_server_and_client_state(cid, &client_ctx);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR("fail call since initialization failed");
-        return OS_ERROR_INVALID_STATE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] reject request", cid);
+        return ret;
     }
 
-    inPort = get_client_port(cid);
-    if (NULL == inPort || size > OS_Dataport_getSize(*inPort))
-    {
-        // the client did a bogus request, it knows the data port size and
-        // never ask for more data
-        return OS_ERROR_INVALID_PARAMETER;
-    }
+    assert(client_ctx->cfg); // if we are here, client must have a partition
 
-    size_t maxOutPortSize = OS_Dataport_getSize(outPort);
-    if (size > max_size)
+    size_t portSizeUpper = OS_Dataport_getSize(client_ctx->inPort);
+    size_t portSizeLower = OS_Dataport_getSize(outPort);
+    if ((size > portSizeUpper) || (size > portSizeLower))
     {
-        // Our lower data port is not big enough for this request, which is
-        // something the client should know from the system configuration. We
-        // could write the data in chunks here instead of failing the request,
-        // but that is currently not implemented.
+        // The client should know the maximum size from the system
+        // configuration. We could process the data in chunks here instead of
+        // failing the request, but that is currently not implemented.
         Debug_LOG_ERROR(
-            "[CID %"SEL4_PRI_word"] size %zu exceed max supported size %zu",
-            cid, size, maxOutPortSize);
+            "[CID %"SEL4_PRI_word"] size %zu exceeds max supported dataport "
+            "sizes (upper %zu, lower %zu)",
+            cid, size, portSizeUpper, portSizeLower);
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
-    if(!isValidStorageArea(
-            offset,
-            size,
-            get_client_partition_config(cid)->size))
+    off_t abs_off = 0;
+    ret = check_request_area(client_ctx, offset, size, &abs_off);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR(
-            "Offset out of bounds for this client. "
-            "offset = %" PRIiMAX ", size = %zu, partitionSize = %" PRId64,
-            offset,
-            size,
-            get_client_partition_config(cid)->size);
-
-        return OS_ERROR_OUT_OF_BOUNDS;
-    }
-
-    off_t off;
-    if (!get_absolute_offset(cid, offset, size, &off))
-    {
-        return OS_ERROR_INSUFFICIENT_SPACE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] write area invalid", cid);
+        return ret;
     }
 
     Debug_LOG_DEBUG(
-        "write from client %"SEL4_PRI_word", offset=%" PRIiMAX " (-> "
-        "%" PRIiMAX "), len %zu",
+        "[CID %"SEL4_PRI_word"] write offset=%" PRIiMAX " (-> %" PRIiMAX "), "
+        "len %zu",
         cid,
         offset,
-        off,
+        abs_off,
         size);
 
-    memcpy(OS_Dataport_getBuf(outPort), OS_Dataport_getBuf(*inPort), size);
+    memcpy(
+        OS_Dataport_getBuf(outPort),
+        OS_Dataport_getBuf(client_ctx->inPort),
+        size);
 
-    return storage_rpc_write(off, size, written);
+    return storage_rpc_write(abs_off, size, p_written);
 }
 
 
@@ -232,75 +240,61 @@ NONNULL_ALL
 storageServer_rpc_read(
     off_t   const offset,
     size_t  const size,
-    size_t* const read)
+    size_t* const p_read)
 {
-    *read = 0; // set default return value
+    OS_Error_t ret;
 
+    *p_read = 0; // set default return value
+
+    // Check if we can handle this client's request.
     seL4_Word cid = storageServer_rpc_get_sender_id();
-    OS_Dataport_t* inPort;
-
-    if (!init_ok)
+    const client_context_t *client_ctx = NULL;
+    ret = check_server_and_client_state(cid, &client_ctx);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR("fail call since initialization failed");
-        return OS_ERROR_INVALID_STATE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] reject request", cid);
+        return ret;
     }
 
-    inPort = get_client_port(cid);
-    if (NULL == inPort || size > OS_Dataport_getSize(*inPort))
-    {
-        // the client did a bogus request, it knows the data port size and
-        // never ask for more data
-        return OS_ERROR_INVALID_PARAMETER;
-    }
+    assert(client_ctx->cfg); // if we are here, client must have a partition
 
-    size_t maxOutPortSize = OS_Dataport_getSize(outPort)
-    if (size > max_size)
+    size_t portSizeUpper = OS_Dataport_getSize(client_ctx->inPort);
+    size_t portSizeLower = OS_Dataport_getSize(outPort);
+    if ((size > portSizeUpper) || (size > portSizeLower))
     {
-        // Our lower data port is not big enough for this request, which is
-        // something the client should know from the system configuration. We
-        // could write the data in chunks here instead of failing the request,
-        // but that is currently not implemented.
+        // The client should know the maximum size from the system
+        // configuration. We could process the data in chunks here instead of
+        // failing the request, but that is currently not implemented.
         Debug_LOG_ERROR(
-            "[CID %"SEL4_PRI_word"] size %zu exceed max supported size %zu",
-            cid, size, maxOutPortSize);
+            "[CID %"SEL4_PRI_word"] size %zu exceeds max supported dataport "
+            "sizes (upper %zu, lower %zu)",
+            cid, size, portSizeUpper, portSizeLower);
         return OS_ERROR_BUFFER_TOO_SMALL;
     }
 
-    if(!isValidStorageArea(
-            offset,
-            size,
-            get_client_partition_config(cid)->size))
+    off_t abs_off = 0;
+    ret = check_request_area(client_ctx, offset, size, &abs_off);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR(
-            "Offset out of bounds for this client. "
-            "offset = %" PRIiMAX ", size = %zu, partitionSize = %" PRId64,
-            offset,
-            size,
-            get_client_partition_config(cid)->size);
-
-        return OS_ERROR_OUT_OF_BOUNDS;
-    }
-    off_t off;
-    if (!get_absolute_offset(cid, offset, size, &off))
-    {
-        return OS_ERROR_INSUFFICIENT_SPACE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] read area invalid", cid);
+        return ret;
     }
 
     Debug_LOG_DEBUG(
-        "read from client %"SEL4_PRI_word", offset=%" PRIiMAX " (-> %" PRIiMAX
+        "[CID %"SEL4_PRI_word"] read at offset=%" PRIiMAX " (-> %" PRIiMAX
         "), len %zu",
         cid,
         offset,
-        off,
+        abs_off,
         size);
 
     size_t lower_read = 0;
-    OS_Error_t ret = storage_rpc_read(off, size, &lower_read);
+    ret = storage_rpc_read(abs_off, size, &lower_read);
     if (OS_SUCCESS != ret)
     {
         Debug_LOG_ERROR(
-            "lower read failed, lower_read=%zu, ret=%d",
-            lower_read, ret);
+            "[CID %"SEL4_PRI_word"] lower read failed, lower_read=%zu, ret=%d",
+            cid, lower_read, ret);
         // ToDo: handle the case where we lower storage driver returned an
         //       error, but also set lower_read > 0. Should we copy the data?
         return ret;
@@ -310,13 +304,17 @@ storageServer_rpc_read(
     // layer and bogus data should not fool us
     if (lower_read > size)
     {
-        Debug_LOG_ERROR("invalid lower_read %zu", lower_read);
+        Debug_LOG_ERROR(
+            "[CID %"SEL4_PRI_word"] invalid lower_read %zu", cid, lower_read);
         return OS_ERROR_INVALID_STATE;
     }
 
-    memcpy(OS_Dataport_getBuf(*inPort), OS_Dataport_getBuf(outPort), lower_read);
+    memcpy(
+        OS_Dataport_getBuf(client_ctx->inPort),
+        OS_Dataport_getBuf(outPort),
+        lower_read);
 
-    *read = lower_read;
+    *p_read = lower_read;
     return OS_SUCCESS;
 }
 
@@ -329,50 +327,51 @@ NONNULL_ALL
 storageServer_rpc_erase(
     off_t  const offset,
     off_t  const size,
-    off_t* const erased)
+    off_t* const p_erased)
 {
-    *erased = 0; // set default return value
+    OS_Error_t ret;
 
-    if (!init_ok)
-    {
-        Debug_LOG_ERROR("fail call since initialization failed");
-        return OS_ERROR_INVALID_STATE;
-    }
+    *p_erased = 0; // set default return value
 
-    // get the calling client's ID
+    // Check if we can handle this client's request.
     seL4_Word cid = storageServer_rpc_get_sender_id();
-
-    if(!isValidStorageArea(
-            offset,
-            size,
-            get_client_partition_config(cid)->size))
+    const client_context_t *client_ctx = NULL;
+    ret = check_server_and_client_state(cid, &client_ctx);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR(
-            "Offset out of bounds for this client. "
-            "offset = %" PRIiMAX ", size = %" PRIiMAX ", partitionSize = %" PRId64,
-            offset,
-            size,
-            get_client_partition_config(cid)->size);
-
-        return OS_ERROR_OUT_OF_BOUNDS;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] reject request", cid);
+        return ret;
     }
 
-    off_t off;
+    assert(client_ctx->cfg); // if we are here, client must have a partition
 
-    if (!get_absolute_offset(cid, offset, size, &off))
+    off_t abs_off = 0;
+    ret = check_request_area(client_ctx, offset, size, &abs_off);
+    if (OS_SUCCESS != ret)
     {
-        return OS_ERROR_INSUFFICIENT_SPACE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] erase area invalid", cid);
+        return ret;
     }
 
     Debug_LOG_DEBUG(
-        "erase from client %"SEL4_PRI_word", offset=%" PRIiMAX " (-> %" PRIiMAX
+        "[CID %"SEL4_PRI_word"] erase at offset=%" PRIiMAX " (-> %" PRIiMAX
         "), len %" PRIiMAX,
         cid,
         offset,
-        off,
+        abs_off,
         size);
 
-    return storage_rpc_erase(off, size, erased);
+    ret = storage_rpc_erase(abs_off, size, p_erased);
+    if (ret != OS_SUCCESS)
+    {
+        Debug_LOG_ERROR(
+            "[CID %"SEL4_PRI_word"] storage_rpc_erase() failed, code: %d",
+            cid, ret);
+
+        return ret;
+    }
+
+    return OS_SUCCESS;
 }
 
 
@@ -382,61 +381,59 @@ storageServer_rpc_erase(
 OS_Error_t
 NONNULL_ALL
 storageServer_rpc_getSize(
-    off_t* const size)
+    off_t* const p_size)
 {
-    *size = 0; // set default return value
+    OS_Error_t ret;
 
-    if (!init_ok)
-    {
-        Debug_LOG_ERROR("fail call since initialization failed");
-        return OS_ERROR_INVALID_STATE;
-    }
+    *p_size = 0; // set default return value
 
-    // get the calling client's ID
+    // Check if we can handle this client's request.
     seL4_Word cid = storageServer_rpc_get_sender_id();
-
-    const struct StorageServer_ClientConfig* p = get_client_partition_config(cid);
-    if (NULL == p)
+    const client_context_t *client_ctx = NULL;
+    ret = check_server_and_client_state(cid, &client_ctx);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR("no configuration for client ID %"SEL4_PRI_word, cid);
-        return OS_ERROR_INVALID_STATE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] reject request", cid);
+        return ret;
     }
 
-    *size = p->size;
+    assert(client_ctx->cfg); // if we are here, client must have a partition
+
+    *p_size = client_ctx->cfg->size;
 
     // We need to forward the error code of the underlying storage e.g. in case
-    // if the medium is not present, so that StorageServer is transparent.
+    // the medium is not present, so that StorageServer is transparent.
     //
-    // Additionally we can verify the config server configuration and raise the
-    // warning.
-    off_t storageSize;
-    const OS_Error_t rslt = storage_rpc_getSize(&storageSize);
-
-    if (rslt != OS_SUCCESS)
+    // Additionally we can verify the config server configuration and raise an
+    // error.
+    off_t storageSize = 0;
+    ret = storage_rpc_getSize(&storageSize);
+    if (ret != OS_SUCCESS)
     {
         Debug_LOG_ERROR(
-            "storage_rpc_getSize() failed. Unable to read the underlying "
-            "storage size. Error code: %i", rslt);
+            "[CID %"SEL4_PRI_word"] storage_rpc_getSize() failed, code: %d",
+            cid, ret);
 
-        return rslt;
+        return ret;
     }
 
     // We don't care about the `size + offset` overflow, because there is no
     // true impact beside sending a warning message, and the overflow is
     // detected in the `post_init` function.
-    if(storageSize < (p->size + p->offset))
+    if(storageSize < (client_ctx->cfg->size + client_ctx->cfg->offset))
     {
         Debug_LOG_WARNING(
-            "The underlying storage is too small. Check StorageServer config:"
-            " storageSize = %" PRIiMAX
+            "[CID %"SEL4_PRI_word"] underlying storage too small. Check "
+            " StorageServer config: storageSize = %" PRIiMAX
             " clientStorageSize = %" PRIiMAX
             " clientStorageOffset = %" PRIiMAX,
+            cid,
             storageSize,
-            p->size,
-            p->offset);
+            client_ctx->cfg->size,
+            client_ctx->cfg->offset);
     }
 
-    return rslt;
+    return OS_SUCCESS;
 }
 
 //------------------------------------------------------------------------------
@@ -445,17 +442,32 @@ storageServer_rpc_getSize(
 OS_Error_t
 NONNULL_ALL
 storageServer_rpc_getBlockSize(
-    size_t* const blockSize)
+    size_t* const p_blockSize)
 {
-    *blockSize = 0; // set default return value
+    OS_Error_t ret;
 
-    if (!init_ok)
+    *p_blockSize = 0; // set default return value
+
+    // Check if we can handle this client's request.
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+    ret = check_server_and_client_state(cid, NULL);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR("fail call since initialization failed");
-        return OS_ERROR_INVALID_STATE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] reject request", cid);
+        return ret;
     }
 
-    return storage_rpc_getBlockSize(blockSize);
+    ret = storage_rpc_getBlockSize(p_blockSize);
+    if (ret != OS_SUCCESS)
+    {
+        Debug_LOG_ERROR(
+            "[CID %"SEL4_PRI_word"] storage_rpc_getBlockSize() failed, code: %d",
+            cid, ret);
+
+        return ret;
+    }
+
+    return OS_SUCCESS;
 }
 
 //------------------------------------------------------------------------------
@@ -464,73 +476,57 @@ storageServer_rpc_getBlockSize(
 OS_Error_t
 NONNULL_ALL
 storageServer_rpc_getState(
-    uint32_t* flags)
+    uint32_t* p_flags)
 {
-    *flags = 0; // set default return value
+    OS_Error_t ret;
 
-    if (!init_ok)
+    *p_flags = 0; // set default return value
+
+    // Check if we can handle this client's request.
+    seL4_Word cid = storageServer_rpc_get_sender_id();
+    ret = check_server_and_client_state(cid, NULL);
+    if (OS_SUCCESS != ret)
     {
-        Debug_LOG_ERROR("fail call since initialization failed");
-        return OS_ERROR_INVALID_STATE;
+        Debug_LOG_ERROR("[CID %"SEL4_PRI_word"] reject request", cid);
+        return ret;
     }
 
-    return storage_rpc_getState(flags);
+    ret = storage_rpc_getState(p_flags);
+    if (ret != OS_SUCCESS)
+    {
+        Debug_LOG_ERROR(
+            "[CID %"SEL4_PRI_word"] storage_rpc_getState() failed, code: %d",
+            cid, ret);
+
+        return ret;
+    }
+
+    return OS_SUCCESS;
 }
 
 
 //------------------------------------------------------------------------------
 void
-post_init(
-    void)
+post_init(void)
 {
-    OS_Error_t err;
-    size_t dp_in_size, dp_out_size = OS_Dataport_getSize(outPort);
-    uint8_t i;
-
-    // Check we don't have too many clients
-    if (clients > STORAGESERVER_MAX_CLIENTS)
-    {
-        Debug_LOG_ERROR(
-            "Config contains too many clients (%zu), currently we support "
-            "only %d clients", clients, STORAGESERVER_MAX_CLIENTS);
-        return;
-    }
-
-    // Make sure both dataports have the same size; this is for simplicity, we
-    // we can deal with this later if it should be necessary..
-    for (i = 0; i < clients; i++)
-    {
-        if (OS_Dataport_isUnset(inPorts[i]))
-        {
-            Debug_LOG_ERROR("Dataport %i is unset, it should be connected "
-                            "to the respective client", i);
-            return;
-        }
-        dp_in_size = OS_Dataport_getSize(inPorts[i]);
-        if (dp_in_size != dp_out_size)
-        {
-            Debug_LOG_ERROR(
-                "Dataports in (client %i, %zu bytes) and out (%zu bytes) differ",
-                i, dp_in_size, dp_out_size);
-            return;
-        }
-    }
+    OS_Error_t ret;
+    const size_t dp_out_size = OS_Dataport_getSize(outPort);
 
     // Check the amount of bytes we have available on the lower device
     off_t sz = 0;
-    if ((err = storage_rpc_getSize(&sz)) == OS_SUCCESS)
+    ret = storage_rpc_getSize(&sz);
+    if (OS_SUCCESS == ret)
     {
-        Debug_LOG_INFO("storage medium size: %" PRIiMAX " bytes", sz);
+        Debug_LOG_WARNING("storage_rpc_getSize() failed with %d", ret);
     }
     else
     {
-        Debug_LOG_WARNING("storage_rpc_getSize() failed with %d", err);
+        Debug_LOG_INFO("storage medium size: %" PRIiMAX " bytes", sz);
     }
 
-
-    // Make sure all partitions fit in the underlying storage.
+    // Check that the storage partition configuration is valid.
     off_t range = 0;
-    for (unsigned int i = 0; i < clients; i++)
+    for (unsigned int i = 0; i < ARRAY_ELEMENTS(storageServer_config.clients); i++)
     {
         const struct StorageServer_ClientConfig* cli_part =
                 &storageServer_config.clients[i];
@@ -561,6 +557,38 @@ post_init(
 
         range = part_end;
     }
+
+    // Setup the context for each client.
+    for (unsigned int i = 0; i < ARRAY_ELEMENTS(all_clients); i++)
+    {
+        const client_context_t *client_ctx = &all_clients[i];
+
+        // The dataport can be unset if there is no client connected.
+        if (OS_Dataport_isUnset(client_ctx->inPort))
+        {
+            Debug_LOG_WARNING(
+                "client %u dataport (storageServer_%d_port) not connected",
+                i, i+1);
+        }
+
+        // Make sure that the client data port size matches the size of our
+        // lower dataports to the actual storage driver.
+        size_t dp_in_size = OS_Dataport_getSize(client_ctx->inPort);
+        if (dp_in_size > dp_out_size)
+        {
+            Debug_LOG_ERROR(
+                "client %u: upper (%zu) and lower (%zu) dataports sizes differ",
+                i, dp_in_size, dp_out_size);
+            return;
+        }
+
+        if (!client_ctx->cfg)
+        {
+            Debug_LOG_WARNING("client %u has no partition assigned", i);
+        }
+    }
+
+    Debug_LOG_INFO("Storage Server running");
 
     init_ok = true;
 }
