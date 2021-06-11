@@ -57,7 +57,21 @@ static const client_context_t all_clients[8] = {
 // dataport shared with lower layer
 static const OS_Dataport_t outPort = OS_DATAPORT_ASSIGN(storage_port);
 
-bool init_ok = false;
+// The global marker stating wether the initialization was successful must be
+// flagged volatile when strictly following the C rules. A hypothetical highly
+// advanced optimizer could turn global variable accesses into constants, if it
+// concludes the global state is always well known. Also, there is no rule in C
+// that global variables must be synced with memory content on function entry
+// and exit - it is just something that happen due to practical reasons. There
+// is not even a rule that functions must be preserved and can't be inlined,
+// which would eventually allow caching global variables easily. Furthermore, C
+// also does not know threads nor concurrent execution of functions, but both
+// have a string impact on global variables.
+// Using volatile here guarantees at least, that accesses to global variables
+// are accessing the actual memory in the given order stated in the program and
+// there is no caching or constant folding that removes memory accesses. That is
+// the best we can do to avoid surprises at higher optimization levels.
+volatile bool init_ok = false;
 
 // Private Functions -----------------------------------------------------------
 
