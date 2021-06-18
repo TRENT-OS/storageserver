@@ -526,16 +526,20 @@ post_init(void)
     OS_Error_t ret;
     const size_t dp_out_size = OS_Dataport_getSize(outPort);
 
-    // Check the amount of bytes we have available on the lower device
-    off_t sz = 0;
-    ret = storage_rpc_getSize(&sz);
-    if (OS_SUCCESS == ret)
+    // Check the amount of bytes we have available on the lower device. If there
+    // is no medium present, the call may fail. This is not an error.
     {
-        Debug_LOG_WARNING("storage_rpc_getSize() failed with %d", ret);
-    }
-    else
-    {
-        Debug_LOG_INFO("storage medium size: %" PRIiMAX " bytes", sz);
+        off_t sz = 0; // isolate this in an artificial block scope, the size is
+                      // currently not used anywhere.
+        ret = storage_rpc_getSize(&sz);
+        if (OS_SUCCESS != ret)
+        {
+            Debug_LOG_WARNING("storage_rpc_getSize() failed with %d", ret);
+        }
+        else
+        {
+            Debug_LOG_INFO("storage medium size: %" PRIiMAX " bytes", sz);
+        }
     }
 
     // Check that the storage partition configuration is valid.
