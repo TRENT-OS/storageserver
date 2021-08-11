@@ -6,6 +6,7 @@
 #include "OS_Dataport.h"
 
 #include "lib_debug/Debug.h"
+#include "lib_macros/Array.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,9 +16,6 @@
 #include <limits.h>
 
 #include <camkes.h>
-
-
-#define ARRAY_ELEMENTS(a)   ( sizeof(a) / sizeof(a[0]) )
 
 // Client (badge) ID start with this value.
 #define CID_BASE    101
